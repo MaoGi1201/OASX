@@ -5,6 +5,7 @@ import 'package:oasx/api/config_transfer_models.dart';
 import 'package:oasx/modules/common/widgets/config_json_drop_area.dart';
 import 'package:oasx/service/script_service.dart';
 import 'package:oasx/translation/i18n_content.dart';
+import 'package:oasx/utils/app_toast.dart';
 
 class AddConfigDialogBody extends StatefulWidget {
   const AddConfigDialogBody({
@@ -140,7 +141,7 @@ class _AddConfigDialogBodyState extends State<AddConfigDialogBody> {
   Future<void> _submit() async {
     final normalizedName = _newName.trim();
     if (normalizedName.isEmpty) {
-      Get.snackbar(I18n.tip.tr, I18n.nameCannotEmpty.tr);
+      showToast(I18n.tip.tr, I18n.nameCannotEmpty.tr);
       return;
     }
     _setSubmitting(true);
@@ -154,7 +155,7 @@ class _AddConfigDialogBodyState extends State<AddConfigDialogBody> {
       final message = e is ConfigTransferException
           ? e.message
           : I18n.configImportFailed.tr;
-      Get.snackbar(I18n.tip.tr, message);
+      showToast(I18n.tip.tr, message);
     } finally {
       _setSubmitting(false);
       widget.onSubmitDone?.call();

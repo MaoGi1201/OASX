@@ -2,11 +2,11 @@
 
 extension ApiClientFeedbackX on ApiClient {
   void showDialog(String title, String content) {
-    Get.snackbar(title, content);
+    showToast(title, content);
   }
 
   void showNetErrSnackBar() {
-    Get.snackbar(
+    showToast(
       I18n.networkError.tr,
       I18n.networkConnectTimeout.tr,
       duration: const Duration(seconds: 5),
@@ -14,7 +14,7 @@ extension ApiClientFeedbackX on ApiClient {
   }
 
   void showNetErrCodeSnackBar(String msg, int code) {
-    Get.snackbar(
+    showToast(
       I18n.networkError.tr,
       '${I18n.networkErrorCode.tr}: $code | $msg',
       duration: const Duration(seconds: 5),

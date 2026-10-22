@@ -96,7 +96,7 @@ extension ScriptLogBrowserActionsX on ScriptLogBrowserController {
   /// Copies text and shows the shared success snackbar.
   void copyText(String text) {
     Clipboard.setData(ClipboardData(text: text));
-    Get.snackbar(
+    showToast(
       I18n.tip.tr,
       I18n.copySuccess.tr,
       duration: const Duration(seconds: 1),

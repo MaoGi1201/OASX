@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:oasx/translation/i18n_content.dart';
+import 'package:oasx/utils/app_toast.dart';
 
 mixin LogMixin on GetxController {
   int get maxLines => 200;
@@ -196,7 +197,7 @@ mixin LogMixin on GetxController {
   void copyLogs() {
     final allLogs = logs.join('');
     Clipboard.setData(ClipboardData(text: allLogs));
-    Get.snackbar(
+    showToast(
       I18n.tip.tr,
       I18n.copySuccess.tr,
       duration: const Duration(seconds: 1),

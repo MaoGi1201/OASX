@@ -19,6 +19,7 @@ import 'package:oasx/translation/i18n_content.dart';
 import 'package:oasx/utils/platform_utils.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:oasx/utils/app_toast.dart';
 
 /// Owns app-release discovery, download, and install handoff.
 class AppUpdateService extends GetxService {
@@ -59,7 +60,7 @@ class AppUpdateService extends GetxService {
       final release = releaseResult.data;
       if (!releaseResult.isSuccess || release == null || !release.isValid) {
         if (showTip) {
-          Get.snackbar(
+          showToast(
               I18n.tip.tr, _buildUpdateCheckFailureMessage(releaseResult));
         }
         return;
@@ -69,7 +70,7 @@ class AppUpdateService extends GetxService {
       final latestVersion = release.version ?? 'v0.0.0';
       if (!AppVersionUtils.compareVersion(currentVersion, latestVersion)) {
         if (showTip) {
-          Get.snackbar(I18n.tip.tr, I18n.noNewVersion.tr);
+          showToast(I18n.tip.tr, I18n.noNewVersion.tr);
         }
         return;
       }
@@ -94,18 +95,18 @@ class AppUpdateService extends GetxService {
     }
     isInstalling.value = true;
     _resetDownloadProgress();
-    Get.snackbar(I18n.tip.tr, I18n.updateDownloading.tr);
+    showToast(I18n.tip.tr, I18n.updateDownloading.tr);
     try {
       final package = await _downloadPackage(plan);
       final isValid = await _validatePackage(package);
       if (!isValid) {
-        Get.snackbar(I18n.tip.tr, I18n.updateInvalidPackage.tr);
+        showToast(I18n.tip.tr, I18n.updateInvalidPackage.tr);
         return;
       }
-      Get.snackbar(I18n.tip.tr, I18n.updatePreparing.tr);
+      showToast(I18n.tip.tr, I18n.updatePreparing.tr);
       await _createInstaller().install(package);
       if (!PlatformUtils.isWindows) {
-        Get.snackbar(I18n.tip.tr, I18n.updateInstallStarted.tr);
+        showToast(I18n.tip.tr, I18n.updateInstallStarted.tr);
       }
     } catch (error) {
       if (_isDownloadCancelled(error)) {
@@ -114,7 +115,7 @@ class AppUpdateService extends GetxService {
       final message = error.toString().contains('permission_required')
           ? I18n.updateAllowUnknownApps.tr
           : I18n.updateDownloadFailed.tr;
-      Get.snackbar(I18n.tip.tr, message);
+      showToast(I18n.tip.tr, message);
     } finally {
       _activeDownloadSession = null;
       isInstalling.value = false;

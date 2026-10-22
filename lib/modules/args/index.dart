@@ -20,6 +20,7 @@ import 'package:oasx/utils/platform_utils.dart';
 import 'package:styled_widget/styled_widget.dart';
 
 import '../../translation/i18n_content.dart';
+import 'package:oasx/utils/app_toast.dart';
 
 part 'widgets/group_view.dart';
 part 'widgets/date_time_picker.dart';
@@ -266,13 +267,13 @@ class ArgsDraftBar extends StatelessWidget {
                         final contextText = scriptName.isEmpty
                             ? localizedTaskName
                             : '$scriptName / $localizedTaskName';
-                        Get.snackbar(
+                        showToast(
                           I18n.settingSaved.tr,
                           contextText,
                         );
                         return;
                       }
-                      Get.snackbar(
+                      showToast(
                         I18n.error.tr,
                         I18n.argsValidationFailed.tr,
                       );

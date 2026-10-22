@@ -46,7 +46,7 @@ extension ScriptServiceAutoX on ScriptService {
   // 只有存在成功结果时，才展示默认时长的成功反馈。
   void _showAutoRunSuccessSnackbar(List<String> successScriptList) {
     if (successScriptList.isEmpty) return;
-    Get.snackbar(
+    showToast(
       I18n.autoRunScript.tr,
       '$successScriptList ${I18n.startSuccess.tr}',
     );

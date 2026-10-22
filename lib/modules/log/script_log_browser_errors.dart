@@ -192,7 +192,7 @@ extension ScriptLogBrowserErrorsX on ScriptLogBrowserController {
           payload.fileName,
           mimeType: 'image/png',
         );
-        Get.snackbar(
+        showToast(
           I18n.tip.tr,
           I18n.homeLogImageSaveSuccess.tr,
           duration: const Duration(seconds: 1),
@@ -211,13 +211,13 @@ extension ScriptLogBrowserErrorsX on ScriptLogBrowserController {
       if (!_isMobileTargetPlatform()) {
         await saveBytesToPath(path, payload.bytes);
       }
-      Get.snackbar(
+      showToast(
         I18n.tip.tr,
         I18n.homeLogImageSaveSuccess.tr,
         duration: const Duration(seconds: 1),
       );
     } catch (_) {
-      Get.snackbar(
+      showToast(
         I18n.tip.tr,
         I18n.homeLogImageSaveFailed.tr,
         duration: const Duration(seconds: 2),

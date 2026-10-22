@@ -81,7 +81,7 @@ extension _ArgumentViewActions on _ArgumentViewState {
   }
 
   void showSnakbar(dynamic value) {
-    Get.snackbar(
+    showToast(
       I18n.settingSaved.tr,
       '$value'.tr,
       duration: const Duration(seconds: 1),

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:oasx/translation/i18n_content.dart';
 import 'package:styled_widget/styled_widget.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
+import 'package:oasx/utils/app_toast.dart';
 
 class ConfigJsonDropArea extends StatefulWidget {
   const ConfigJsonDropArea({
@@ -87,11 +88,11 @@ class _ConfigJsonDropAreaState extends State<ConfigJsonDropArea> {
             _selectPath(uri.toFilePath());
           }
         },
-        onError: (_) => Get.snackbar(I18n.tip.tr, I18n.configImportFailed.tr),
+        onError: (_) => showToast(I18n.tip.tr, I18n.configImportFailed.tr),
       );
       return;
     }
-    Get.snackbar(I18n.tip.tr, I18n.configImportFailed.tr);
+    showToast(I18n.tip.tr, I18n.configImportFailed.tr);
   }
 
   Widget _dropText(ThemeData theme) {
@@ -124,7 +125,7 @@ class _ConfigJsonDropAreaState extends State<ConfigJsonDropArea> {
 
   void _selectPath(String path) {
     if (!path.toLowerCase().endsWith('.json')) {
-      Get.snackbar(I18n.tip.tr, I18n.configJsonFileInvalid.tr);
+      showToast(I18n.tip.tr, I18n.configJsonFileInvalid.tr);
       return;
     }
     _setDragging(false);

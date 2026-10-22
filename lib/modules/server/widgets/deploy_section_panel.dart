@@ -8,6 +8,7 @@ import 'package:oasx/modules/server/controllers/server_controller.dart';
 import 'package:oasx/modules/server/widgets/deploy_import_dialog.dart';
 import 'package:oasx/modules/server/widgets/deploy_yaml_editor.dart';
 import 'package:oasx/translation/i18n_content.dart';
+import 'package:oasx/utils/app_toast.dart';
 
 /// Displays deploy.yaml editing as a collapsible panel matching log panels.
 class DeploySectionPanel extends StatefulWidget {
@@ -87,11 +88,11 @@ class _DeploySectionPanelState extends State<DeploySectionPanel> {
 
   void _showCopySnack(String yaml) {
     Clipboard.setData(ClipboardData(text: yaml));
-    Get.snackbar(I18n.tip.tr, I18n.copySuccess.tr);
+    showToast(I18n.tip.tr, I18n.copySuccess.tr);
   }
 
   void _showSaveSnack() {
-    Get.snackbar(I18n.tip.tr, I18n.settingSaved.tr);
+    showToast(I18n.tip.tr, I18n.settingSaved.tr);
   }
 
   void _showImportDialog() {
@@ -108,7 +109,7 @@ class _DeploySectionPanelState extends State<DeploySectionPanel> {
       return;
     }
     final success = Get.find<ServerController>().exportDeployFile(path);
-    Get.snackbar(
+    showToast(
       I18n.tip.tr,
       success
           ? I18n.deployFileExportSuccess.tr

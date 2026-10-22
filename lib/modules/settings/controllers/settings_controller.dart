@@ -12,6 +12,7 @@ import 'package:oasx/service/script_service.dart';
 import 'package:oasx/translation/i18n_content.dart';
 import 'package:oasx/utils/check_version.dart';
 import 'package:oasx/utils/platform_utils.dart';
+import 'package:oasx/utils/app_toast.dart';
 
 class SettingsController extends GetxController {
   final storage = GetStorage();
@@ -137,7 +138,7 @@ class SettingsController extends GetxController {
         unawaited(_resetDashboardAfterKillServer());
       }
     } else if (showTip) {
-      Get.snackbar(I18n.killServerFailure.tr, I18n.killServerFailureMsg.tr);
+      showToast(I18n.killServerFailure.tr, I18n.killServerFailureMsg.tr);
     }
     return success;
   }

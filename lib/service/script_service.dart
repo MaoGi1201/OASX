@@ -15,6 +15,7 @@ import 'package:oasx/utils/platform_utils.dart';
 import 'package:oasx/utils/time_utils.dart';
 import 'package:oasx/modules/log/script_log_controller.dart';
 import 'package:oasx/modules/log/script_log_browser_controller.dart';
+import 'package:oasx/utils/app_toast.dart';
 
 part 'script_service_ws.dart';
 part 'script_service_auto.dart';
@@ -121,7 +122,7 @@ class ScriptService extends GetxService {
       final scriptModel = findScriptModel(scriptName);
       if (scriptModel != null &&
           scriptModel.state.value == ScriptState.running) {
-        Get.snackbar(
+        showToast(
           I18n.tip.tr,
           I18n.configUpdateTip.tr,
           duration: const Duration(milliseconds: 2000),

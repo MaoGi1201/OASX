@@ -19,6 +19,7 @@ import 'package:oasx/api/github_release_model.dart';
 import './home_model.dart';
 import './update_info_model.dart';
 import 'dio_http_cache/dio_http_cache.dart';
+import 'package:oasx/utils/app_toast.dart';
 
 part 'api_client_menu_config.dart';
 part 'api_client_config_transfer.dart';
@@ -162,10 +163,10 @@ class ApiClient {
       ),
     );
     if (res.isSuccess && res.data == true) {
-      Get.snackbar(I18n.notifyTestSuccess.tr, '');
+      showToast(I18n.notifyTestSuccess.tr, '');
       return true;
     }
-    Get.snackbar(I18n.notifyTestFailed.tr, res.data.toString());
+    showToast(I18n.notifyTestFailed.tr, res.data.toString());
     return false;
   }
 

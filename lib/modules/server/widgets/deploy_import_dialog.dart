@@ -6,6 +6,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import 'package:oasx/modules/server/controllers/server_controller.dart';
 import 'package:oasx/translation/i18n_content.dart';
+import 'package:oasx/utils/app_toast.dart';
 
 /// Dialog for importing an external YAML file as local deploy.yaml.
 class DeployImportDialog extends StatefulWidget {
@@ -90,14 +91,14 @@ class _DeployImportDialogState extends State<DeployImportDialog> {
           }
           _selectPath(uri.toFilePath());
         },
-        onError: (_) => Get.snackbar(
+        onError: (_) => showToast(
           I18n.tip.tr,
           I18n.deployFileImportFailed.tr,
         ),
       );
       return;
     }
-    Get.snackbar(I18n.tip.tr, I18n.deployFileImportFailed.tr);
+    showToast(I18n.tip.tr, I18n.deployFileImportFailed.tr);
   }
 
   Widget _buildDropText(ThemeData theme) {
@@ -131,7 +132,7 @@ class _DeployImportDialogState extends State<DeployImportDialog> {
 
   void _selectPath(String path) {
     if (!path.toLowerCase().endsWith('.yaml')) {
-      Get.snackbar(I18n.tip.tr, I18n.deployFileNameInvalid.tr);
+      showToast(I18n.tip.tr, I18n.deployFileNameInvalid.tr);
       return;
     }
     setState(() {
@@ -156,10 +157,10 @@ class _DeployImportDialogState extends State<DeployImportDialog> {
     }
     final success = Get.find<ServerController>().importDeployFile(path);
     if (!success) {
-      Get.snackbar(I18n.tip.tr, I18n.deployFileImportFailed.tr);
+      showToast(I18n.tip.tr, I18n.deployFileImportFailed.tr);
       return;
     }
     Get.back();
-    Get.snackbar(I18n.tip.tr, I18n.deployFileImportSuccess.tr);
+    showToast(I18n.tip.tr, I18n.deployFileImportSuccess.tr);
   }
 }

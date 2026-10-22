@@ -16,6 +16,7 @@ import 'package:oasx/utils/browser_download_io.dart'
     if (dart.library.html) 'package:oasx/utils/browser_download_web.dart';
 import 'package:oasx/utils/file_save_stub.dart'
     if (dart.library.io) 'package:oasx/utils/file_save_io.dart';
+import 'package:oasx/utils/app_toast.dart';
 
 part 'script_log_browser_actions.dart';
 part 'script_log_browser_error_detail_render.dart';
