@@ -104,11 +104,22 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
   }
 
   bool get isStatsVisibleInCurrentLayout {
+    if (statsPanelVisible.value) {
+      return true;
+    }
     if (workbenchLayoutMode.value == HomeWorkbenchLayoutMode.threePane) {
       return displayedWorkbenchSidebarTabFor(workbenchLayoutMode.value) ==
           HomeWorkbenchTab.stats;
     }
     return activeWorkbenchTab.value == HomeWorkbenchTab.stats;
+  }
+
+  /// Called by the dashboard's right column when it switches tabs.
+  void setStatsPanelVisible(bool visible) {
+    if (statsPanelVisible.value == visible) {
+      return;
+    }
+    statsPanelVisible.value = visible;
   }
 
   List<ScriptModel> get orderedScripts {

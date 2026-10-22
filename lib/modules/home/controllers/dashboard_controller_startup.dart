@@ -74,7 +74,7 @@ extension HomeDashboardStartupX on HomeDashboardController {
       }
 
       if (showFailureSnack) {
-        Get.snackbar(I18n.loginError.tr, I18n.loginErrorMsg.tr);
+        showToast(I18n.loginError.tr, I18n.loginErrorMsg.tr);
       }
       if (!enableAutoDeploy || !Get.isRegistered<SettingsController>()) {
         isStartupConnectionFailed.value = true;

@@ -16,6 +16,18 @@ part 'log_center_log_text_span_builder.dart';
 part 'log_center_toolbar.dart';
 part 'log_center_panel_scroll.dart';
 
+// Dark/light palette shared by the log center controls (matches the dashboard).
+Color get _logTeal =>
+    Get.isDarkMode ? const Color(0xFF2FD6A5) : const Color(0xFF0E9E7A);
+Color get _logTealDim =>
+    Get.isDarkMode ? const Color(0xFF123B34) : const Color(0xFFDFF5EE);
+Color get _logBorder =>
+    Get.isDarkMode ? const Color(0xFF232932) : const Color(0xFFE1E5EB);
+Color get _logText2 =>
+    Get.isDarkMode ? const Color(0xFF9AA3AF) : const Color(0xFF5A6472);
+Color get _logSurface2 =>
+    Get.isDarkMode ? const Color(0xFF1B2129) : const Color(0xFFEDEFF3);
+
 /// Script log center backed by the `/logs` browser API.
 class LogCenterPanel extends StatefulWidget {
   /// Creates one script log center.
@@ -98,9 +110,12 @@ class _LogCenterPanelState extends State<LogCenterPanel> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            LogCenterToolbar(
-              controller: controller,
-              onToggleLineWrap: () => _handleLogCenterLineWrapToggle(this),
+            SizedBox(
+              height: 28,
+              child: LogCenterToolbar(
+                controller: controller,
+                onToggleLineWrap: () => _handleLogCenterLineWrapToggle(this),
+              ),
             ),
             const SizedBox(height: 12),
             Expanded(

@@ -10,6 +10,7 @@ import 'package:oasx/modules/home/widgets/home_workbench_body.dart';
 import 'package:oasx/modules/home/widgets/workbench_sidebar_panel.dart';
 import 'package:oasx/service/script_service.dart';
 import 'package:oasx/translation/i18n_content.dart';
+import 'package:oasx/utils/app_toast.dart';
 
 class ConfigWorkbench extends StatelessWidget {
   const ConfigWorkbench({
@@ -144,7 +145,7 @@ class ConfigWorkbench extends StatelessWidget {
       runNow: runNow,
     );
     if (ret) {
-      Get.snackbar(I18n.success.tr, taskName.tr);
+      showToast(I18n.success.tr, taskName.tr);
     }
   }
 
@@ -160,13 +161,13 @@ class ConfigWorkbench extends StatelessWidget {
     final label = _bulkQuickScheduleLabel(runNow);
     switch (result) {
       case HomeBulkQuickScheduleResult.completed:
-        Get.snackbar(I18n.success.tr, label);
+        showToast(I18n.success.tr, label);
         break;
       case HomeBulkQuickScheduleResult.failed:
-        Get.snackbar(I18n.error.tr, label);
+        showToast(I18n.error.tr, label);
         break;
       case HomeBulkQuickScheduleResult.timedOut:
-        Get.snackbar(I18n.tip.tr, I18n.homeBulkQuickScheduleTimedOut.tr);
+        showToast(I18n.tip.tr, I18n.homeBulkQuickScheduleTimedOut.tr);
         break;
       case HomeBulkQuickScheduleResult.skipped:
         break;
@@ -188,7 +189,7 @@ class ConfigWorkbench extends StatelessWidget {
       nextRun: nextRun,
     );
     if (ret) {
-      Get.snackbar(I18n.success.tr, taskName.tr);
+      showToast(I18n.success.tr, taskName.tr);
     }
   }
 

@@ -16,6 +16,7 @@ import 'package:oasx/utils/platform_utils.dart';
 import 'package:oasx/utils/time_utils.dart';
 import 'package:oasx/modules/args/index.dart';
 import 'package:oasx/modules/server/index.dart';
+import 'package:oasx/utils/app_toast.dart';
 
 part 'dashboard_controller_linking.dart';
 part 'dashboard_controller_drag_copy.dart';
@@ -129,6 +130,11 @@ class HomeDashboardController extends GetxController {
   final activeWorkbenchTab = HomeWorkbenchTab.status.obs;
   final _lastPrimaryWorkbenchTab = HomeWorkbenchTab.status.obs;
   final activeWorkbenchSidebarTab = HomeWorkbenchTab.logs.obs;
+  /// Whether the dashboard's right column currently shows the statistics tab.
+  /// The new dashboard keeps this switch local to its right column, so the
+  /// statistics controller needs an explicit signal instead of the workbench
+  /// tab state.
+  final statsPanelVisible = false.obs;
   final taskCatalogFilter = HomeTaskCatalogFilter.all.obs;
   final activeTaskName = ''.obs;
   final activeDragPayload = Rxn<ConfigDragPayload>();

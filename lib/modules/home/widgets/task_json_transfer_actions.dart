@@ -15,6 +15,7 @@ import 'package:oasx/utils/browser_download_io.dart'
     if (dart.library.html) 'package:oasx/utils/browser_download_web.dart';
 import 'package:oasx/utils/file_save_stub.dart'
     if (dart.library.io) 'package:oasx/utils/file_save_io.dart';
+import 'package:oasx/utils/app_toast.dart';
 
 class TaskJsonTransferActions extends StatefulWidget {
   const TaskJsonTransferActions({
@@ -86,7 +87,7 @@ class _TaskJsonTransferActionsState extends State<TaskJsonTransferActions> {
         widget.configName,
         'get_schedule',
       );
-      Get.snackbar(I18n.tip.tr, I18n.taskJsonImportSuccess.tr);
+      showToast(I18n.tip.tr, I18n.taskJsonImportSuccess.tr);
     }, I18n.taskJsonImportFailed.tr);
   }
 
@@ -102,7 +103,7 @@ class _TaskJsonTransferActionsState extends State<TaskJsonTransferActions> {
           payload.fileName,
           mimeType: 'application/json',
         );
-        Get.snackbar(I18n.tip.tr, I18n.taskJsonExportSuccess.tr);
+        showToast(I18n.tip.tr, I18n.taskJsonExportSuccess.tr);
         return;
       }
       final path = await FilePicker.platform.saveFile(
@@ -115,7 +116,7 @@ class _TaskJsonTransferActionsState extends State<TaskJsonTransferActions> {
       if (shouldWritePickedSavePath()) {
         await saveBytesToPath(path, payload.bytes);
       }
-      Get.snackbar(I18n.tip.tr, I18n.taskJsonExportSuccess.tr);
+      showToast(I18n.tip.tr, I18n.taskJsonExportSuccess.tr);
     }, I18n.taskJsonExportFailed.tr);
   }
 
@@ -128,7 +129,7 @@ class _TaskJsonTransferActionsState extends State<TaskJsonTransferActions> {
       const encoder = JsonEncoder.withIndent('  ');
       final text = payload is String ? payload : encoder.convert(payload);
       await Clipboard.setData(ClipboardData(text: text));
-      Get.snackbar(I18n.tip.tr, I18n.taskJsonCopySuccess.tr);
+      showToast(I18n.tip.tr, I18n.taskJsonCopySuccess.tr);
     }, I18n.taskJsonCopyFailed.tr);
   }
 
@@ -151,7 +152,7 @@ class _TaskJsonTransferActionsState extends State<TaskJsonTransferActions> {
       await action();
     } catch (e) {
       final message = e is ConfigTransferException ? e.message : fallback;
-      Get.snackbar(I18n.tip.tr, message);
+      showToast(I18n.tip.tr, message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

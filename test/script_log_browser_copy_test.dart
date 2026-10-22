@@ -133,7 +133,13 @@ void main() {
 
     await pumpShell(tester, const LogCenterPanel(scriptName: 'demo'));
     await tester.pumpAndSettle();
-    await tester.longPress(find.byType(ListView));
+    // Explicit long-press gesture: the helper's fixed timing can flake under
+    // parallel test load, so hold deterministically before releasing.
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(ListView).first),
+    );
+    await tester.pump(const Duration(milliseconds: 700));
+    await gesture.up();
     await tester.pumpAndSettle();
 
     expect(find.byType(Dialog), findsOneWidget);

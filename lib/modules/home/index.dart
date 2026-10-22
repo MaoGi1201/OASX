@@ -2,10 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:oasx/api/api_client.dart';
 import 'package:oasx/modules/common/widgets/add_config_dialog.dart';
 import 'package:oasx/modules/common/widgets/appbar.dart';
 import 'package:oasx/modules/home/controllers/dashboard_controller.dart';
-import 'package:oasx/modules/home/widgets/config_workbench.dart';
+import 'package:oasx/modules/home/widgets/dashboard_home.dart';
 import 'package:oasx/modules/server/controllers/server_controller.dart';
 import 'package:oasx/service/script_service.dart';
 import 'package:oasx/translation/i18n_content.dart';
@@ -27,7 +28,6 @@ class _HomeViewState extends State<HomeView> {
   final scriptService = Get.find<ScriptService>();
   final controller = Get.find<HomeDashboardController>();
   bool _isAddingScript = false;
-  bool _isRefreshingScripts = false;
 
   void _setAddingScript(bool value) {
     if (!mounted) {
@@ -35,15 +35,6 @@ class _HomeViewState extends State<HomeView> {
     }
     setState(() {
       _isAddingScript = value;
-    });
-  }
-
-  void _setRefreshingScripts(bool value) {
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _isRefreshingScripts = value;
     });
   }
 

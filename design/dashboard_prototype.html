@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OASX · 仪表盘原型</title>
+<style>
+:root{
+  --bg:#0a0c0f;
+  --titlebar:#0e1115;
+  --panel:#12151a;
+  --card:#1a1f26;
+  --border:#232932;
+  --border-soft:#1a1f26;
+  --text:#e8eaed;
+  --text-2:#9aa3af;
+  --text-3:#6b7280;
+  --teal:#2fd6a5;
+  --teal-dim:#123b34;
+  --green:#4ade80;
+  --red:#e5484d;
+  --yellow:#f0b429;
+  --blue:#5b8def;
+  --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:"PingFang SC","Microsoft YaHei","Segoe UI",system-ui,-apple-system,sans-serif;
+  font-size:13px;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+.app{height:100vh;display:flex;flex-direction:column;}
+
+/* ---------- title bar ---------- */
+.titlebar{
+  height:46px;flex:0 0 46px;display:flex;align-items:center;gap:14px;
+  padding:0 12px;background:var(--titlebar);border-bottom:1px solid var(--border-soft);
+}
+.brand{display:flex;align-items:center;gap:9px;}
+.brand .logo{
+  width:24px;height:24px;border-radius:7px;
+  background:linear-gradient(135deg,#ff5a5f,#c81e2b);
+  display:grid;place-items:center;font-size:13px;font-weight:800;color:#fff;
+  box-shadow:0 2px 10px rgba(229,72,77,.45);
+}
+.brand .name{font-weight:700;letter-spacing:.4px;font-size:14px;}
+.accounts{display:flex;align-items:center;gap:6px;}
+.acct{
+  display:flex;align-items:center;gap:7px;height:28px;padding:0 10px;border-radius:8px;
+  border:1px solid transparent;color:var(--text-2);cursor:pointer;font-size:12.5px;
+}
+.acct.active{background:#1b2129;border-color:#2a323d;color:var(--text);}
+.acct .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px rgba(74,222,128,.7);}
+.acct svg{width:13px;height:13px;color:var(--green);}
+.sq{
+  width:24px;height:24px;border-radius:7px;border:1px solid var(--border);
+  background:#141820;color:var(--text-2);display:grid;place-items:center;
+  cursor:pointer;font-size:15px;line-height:1;
+}
+.sq:hover{background:#1b2129;color:var(--text);}
+.spacer{flex:1;}
+.status{display:flex;align-items:center;gap:12px;color:var(--text-2);}
+.dev{
+  display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:8px;
+  background:#141820;border:1px solid var(--border);font-size:12px;
+}
+.dev .dot{width:6px;height:6px;border-radius:50%;background:var(--green);}
+.time{font-variant-numeric:tabular-nums;font-size:12.5px;}
+.winbtns{display:flex;gap:4px;color:var(--text-3);font-size:13px;}
+.winbtns span{width:24px;height:24px;display:grid;place-items:center;border-radius:6px;cursor:pointer;}
+.winbtns span:hover{background:#1b2129;color:var(--text);}
+
+/* ---------- main ---------- */
+.main{flex:1;display:grid;grid-template-columns:1.0fr 1.02fr 1.08fr;gap:10px;padding:10px;min-height:0;}
+.col{display:flex;flex-direction:column;gap:10px;min-height:0;min-width:0;}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);}
+.panel{
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  display:flex;flex-direction:column;min-height:0;overflow:hidden;
+}
+.panel-head{display:flex;align-items:center;gap:8px;padding:12px 14px 10px;flex:0 0 auto;}
+.panel-title{font-weight:700;font-size:14px;}
+.muted{color:var(--text-3);font-size:12px;}
+.icon-btn{
+  width:26px;height:26px;border-radius:7px;display:grid;place-items:center;
+  color:var(--text-3);cursor:pointer;
+}
+.icon-btn:hover{background:#1b2129;color:var(--text-2);}
+.icon-btn svg{width:14px;height:14px;}
+
+/* ---------- date distribution ---------- */
+.dist{padding:12px 14px 12px;flex:0 0 auto;}
+.dist-head{display:flex;align-items:baseline;gap:8px;margin-bottom:12px;}
+.dist-head .t{font-weight:700;font-size:13.5px;}
+.days{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;}
+.day{display:flex;flex-direction:column;align-items:center;gap:7px;}
+.day .lbl{font-size:11px;color:var(--text-3);white-space:nowrap;}
+.day .num{
+  width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+  font-size:13px;font-weight:600;color:var(--text-2);background:#1b2129;
+}
+.day.today .lbl{color:var(--teal);}
+.day.today .num{
+  background:var(--teal-dim);color:var(--teal);
+  box-shadow:inset 0 0 0 1px rgba(47,214,165,.35);
+}
+
+/* ---------- next task card ---------- */
+.next{padding:12px 14px;flex:0 0 auto;display:flex;flex-direction:column;gap:8px;}
+.next .lbl{font-size:11px;color:var(--text-3);}
+.next-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.next .title{font-size:17px;font-weight:700;letter-spacing:.5px;}
+.actions{display:flex;gap:8px;}
+.btn{
+  height:28px;padding:0 12px;border-radius:8px;font-size:12px;
+  display:inline-flex;align-items:center;gap:6px;cursor:pointer;border:1px solid transparent;
+  white-space:nowrap;
+}
+.btn.primary{background:var(--teal);color:#04140f;font-weight:600;}
+.btn.primary:hover{filter:brightness(1.06);}
+.btn.ghost{background:transparent;border-color:var(--border);color:var(--text-2);}
+.btn.ghost:hover{background:#1b2129;color:var(--text);}
+
+/* ---------- task list ---------- */
+.tasks-list{flex:1;overflow:auto;padding:0 8px 8px;}
+.task-row{
+  display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;
+  cursor:pointer;border:1px solid transparent;position:relative;
+}
+.task-row:hover{background:#171c23;}
+.task-row.sel{background:#1c232c;border-color:#2b3540;}
+.task-row.sel::before{
+  content:"";position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:2px;
+  background:var(--teal);
+}
+.task-row .tm{width:42px;color:var(--text-2);font-variant-numeric:tabular-nums;font-size:12.5px;}
+.task-row .dot{width:3px;height:3px;border-radius:50%;background:var(--text-3);flex:0 0 3px;}
+.task-row .nm{flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.task-row .act{display:flex;gap:2px;color:var(--text-3);}
+.task-row .act .i{
+  width:24px;height:24px;border-radius:7px;display:grid;place-items:center;cursor:pointer;
+}
+.task-row .act .i:hover{background:#232b35;color:var(--text);}
+.task-row .act .i.on{color:var(--green);}
+.task-row .act .i svg{width:13px;height:13px;}
+
+/* ---------- logs ---------- */
+.log-tabs{display:flex;align-items:center;gap:10px;margin-left:4px;}
+.log-tab{font-size:12.5px;color:var(--text-3);cursor:pointer;white-space:nowrap;}
+.log-tab.on{color:var(--text);font-weight:600;}
+.logs-body{
+  flex:1;overflow:auto;padding:2px 14px 12px;
+  font-family:"Cascadia Mono","Consolas","SFMono-Regular",monospace;
+  font-size:11.5px;line-height:1.9;
+}
+.log-line{white-space:nowrap;color:#8b97a8;}
+.log-line .ts{color:#5c6674;margin-right:8px;}
+.log-line .lv{display:inline-block;width:56px;color:#6f7d90;}
+.log-line.warn{color:#d9c07a;}
+.log-line.warn .lv{color:var(--yellow);}
+.log-line .gt{color:#5b8def;}
+
+/* ---------- assets ---------- */
+.chip{
+  height:22px;padding:0 8px;border-radius:7px;background:#1b2129;border:1px solid var(--border);
+  display:inline-flex;align-items:center;font-size:11.5px;color:var(--text-2);
+}
+.assets-body{
+  flex:1;overflow:auto;padding:0 10px 8px;display:grid;
+  grid-template-columns:1fr 1fr;gap:4px 8px;align-content:start;
+}
+.asset{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:10px;min-width:0;}
+.asset:hover{background:#171c23;}
+.asset .ico{
+  width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+  font-size:17px;flex:0 0 34px;background:#1d242d;
+}
+.asset .info{flex:1;min-width:0;}
+.asset .nm{
+  font-size:11.5px;color:var(--text-3);margin-bottom:1px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.asset .val{font-size:13.5px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;}
+.asset .delta{
+  font-size:11px;color:var(--teal);font-variant-numeric:tabular-nums;
+  align-self:flex-end;padding-bottom:3px;white-space:nowrap;
+}
+.assets-foot{
+  padding:9px 14px 12px;border-top:1px solid var(--border-soft);
+  color:var(--text-3);font-size:11.5px;flex:0 0 auto;
+}
+
+/* ---------- scrollbars ---------- */
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:#2a323d;border-radius:8px;}
+::-webkit-scrollbar-thumb:hover{background:#36404d;}
+::-webkit-scrollbar-track{background:transparent;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= title bar ================= -->
+  <div class="titlebar">
+    <div class="brand">
+      <div class="logo">O</div>
+      <div class="name">OASX</div>
+    </div>
+
+    <div class="accounts">
+      <div class="acct active">
+        <span class="dot"></span>oas1
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg>
+      </div>
+      <div class="acct">
+        <span class="dot"></span>oas2
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg>
+      </div>
+      <div class="sq">+</div>
+      <div class="sq">−</div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="status">
+      <div class="dev"><span class="dot"></span>MuMu · 已连接</div>
+      <span class="time">13:02</span>
+      <div class="winbtns">
+        <span>⚙</span>
+        <span>—</span>
+        <span>✕</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= main ================= -->
+  <div class="main">
+
+    <!-- ---------- column 1: tasks ---------- -->
+    <div class="col">
+      <!-- date distribution -->
+      <div class="card dist">
+        <div class="dist-head">
+          <span class="t">任务日期分布</span>
+          <span class="muted">未来7天</span>
+          <span class="muted" style="margin-left:auto">共27项</span>
+        </div>
+        <div class="days">
+          <div class="day today"><span class="lbl">今天</span><span class="num">11</span></div>
+          <div class="day"><span class="lbl">周四</span><span class="num">7</span></div>
+          <div class="day"><span class="lbl">周五</span><span class="num">3</span></div>
+          <div class="day"><span class="lbl">周六</span><span class="num">1</span></div>
+          <div class="day"><span class="lbl">周日</span><span class="num">0</span></div>
+          <div class="day"><span class="lbl">周一</span><span class="num">5</span></div>
+          <div class="day"><span class="lbl">周二</span><span class="num">0</span></div>
+          <div class="day"><span class="lbl">周三</span><span class="num">0</span></div>
+        </div>
+      </div>
+
+      <!-- task list -->
+      <div class="panel" style="flex:1">
+        <div class="panel-head">
+          <span class="panel-title">任务</span>
+          <span class="muted">其余 11 项</span>
+          <div style="margin-left:auto;display:flex;gap:2px">
+            <div class="icon-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            </div>
+            <div class="icon-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="tasks-list">
+          <div class="task-row sel">
+            <span class="tm">13:36</span><span class="dot"></span><span class="nm">突破</span>
+            <span class="act">
+              <span class="i on"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5L19.5 10H13z"/></svg></span>
+              <span class="i on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg></span>
+            </span>
+          </div>
+          <div class="task-row">
+            <span class="tm">15:32</span><span class="dot"></span><span class="nm">结界踏卡</span>
+            <span class="act">
+              <span class="i"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5L19.5 10H13z"/></svg></span>
+              <span class="i on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg></span>
+            </span>
+          </div>
+          <div class="task-row">
+            <span class="tm">15:39</span><span class="dot"></span><span class="nm">花合战</span>
+            <span class="act">
+              <span class="i"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5L19.5 10H13z"/></svg></span>
+              <span class="i on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg></span>
+            </span>
+          </div>
+          <div class="task-row">
+            <span class="tm">16:08</span><span class="dot"></span><span class="nm">式神委派</span>
+            <span class="act">
+              <span class="i"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5L19.5 10H13z"/></svg></span>
+              <span class="i on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg></span>
+            </span>
+          </div>
+          <div class="task-row">
+            <span class="tm">17:00</span><span class="dot"></span><span class="nm">悬赏封印</span>
+            <span class="act">
+              <span class="i"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5L19.5 10H13z"/></svg></span>
+              <span class="i on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg></span>
+            </span>
+          </div>
+          <div class="task-row">
+            <span class="tm">17:05</span><span class="dot"></span><span class="nm">逢魔之时</span>
+            <span class="act">
+              <span class="i"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5L19.5 10H13z"/></svg></span>
+              <span class="i on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg></span>
+            </span>
+          </div>
+          <div class="task-row">
+            <span class="tm">19:00</span><span class="dot"></span><span class="nm">道馆</span>
+            <span class="act">
+              <span class="i"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5L19.5 10H13z"/></svg></span>
+              <span class="i on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg></span>
+            </span>
+          </div>
+          <div class="task-row">
+            <span class="tm">19:17</span><span class="dot"></span><span class="nm">结界踏卡</span>
+            <span class="act">
+              <span class="i"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5L19.5 10H13z"/></svg></span>
+              <span class="i on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg></span>
+            </span>
+          </div>
+          <div class="task-row">
+            <span class="tm">20:15</span><span class="dot"></span><span class="nm">退治</span>
+            <span class="act">
+              <span class="i"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5L19.5 10H13z"/></svg></span>
+              <span class="i on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg></span>
+            </span>
+          </div>
+          <div class="task-row">
+            <span class="tm">22:30</span><span class="dot"></span><span class="nm">集体任务</span>
+            <span class="act">
+              <span class="i"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5L19.5 10H13z"/></svg></span>
+              <span class="i on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg></span>
+            </span>
+          </div>
+          <div class="task-row">
+            <span class="tm">23:55</span><span class="dot"></span><span class="nm">资产更新</span>
+            <span class="act">
+              <span class="i"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5L19.5 10H13z"/></svg></span>
+              <span class="i on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg></span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- column 2: next + logs ---------- -->
+    <div class="col">
+      <div class="card next">
+        <div class="lbl">下一次</div>
+        <div class="next-row">
+          <span class="title">寮突破</span>
+          <div class="actions">
+            <span class="btn primary">立即运行</span>
+            <span class="btn ghost">调整计划</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="flex:1">
+        <div class="panel-head">
+          <span class="panel-title">日志</span>
+          <div class="log-tabs">
+            <span class="log-tab on">· 运行日志</span>
+            <span class="log-tab">错误日志 <span style="color:var(--red)">①</span></span>
+          </div>
+          <div style="margin-left:auto">
+            <div class="icon-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="logs-body">
+          <div class="log-line"><span class="ts">12:46:27</span><span class="lv">INFO</span>Get all reward</div>
+          <div class="log-line"><span class="ts">12:46:27</span><span class="lv">INFO</span>Battle completion process</div>
+          <div class="log-line"><span class="ts">12:46:28</span><span class="lv">INFO</span>Add stuck record: PREPARE_BEFORE_BATTLE</div>
+          <div class="log-line"><span class="ts">12:46:28</span><span class="lv">INFO</span>[NUM] NUMBER_0 [1/3] [0/6]</div>
+          <div class="log-line warn"><span class="ts">12:46:28</span><span class="lv">WARNING</span>Execute round failed, no ticket</div>
+          <div class="log-line"><span class="ts">12:46:28</span><span class="lv">INFO</span>We have no chance to attack. Try again after 1 hour.</div>
+          <div class="log-line"><span class="ts">12:46:28</span><span class="lv">INFO</span>&lt;&lt;&lt; UI GOTO PAGE_MAIN &gt;&gt;&gt;</div>
+          <div class="log-line"><span class="ts">12:46:28</span><span class="lv">INFO</span>Current page: page_kekkai_toppa. Following path:</div>
+          <div class="log-line"><span class="ts">12:46:28</span><span class="lv">INFO</span>page_kekkai_toppa &gt; page_exploration &gt; page_main</div>
+          <div class="log-line"><span class="ts">12:46:28</span><span class="lv">INFO</span>Page switch: page_kekkai_toppa &gt; page_exploration</div>
+          <div class="log-line"><span class="ts">12:46:29</span><span class="lv">INFO</span>Click (1208, 135) @ UI_BACK_RED</div>
+          <div class="log-line"><span class="ts">12:46:30</span><span class="lv">INFO</span>Page arrived page_exploration</div>
+          <div class="log-line"><span class="ts">12:46:30</span><span class="lv">INFO</span>Page switch: page_exploration &gt; page_main</div>
+          <div class="log-line"><span class="ts">12:46:30</span><span class="lv">INFO</span>Click (40, 38) @ UI_BACK_YELLOW</div>
+          <div class="log-line"><span class="ts">12:46:34</span><span class="lv">INFO</span>Page arrived page_main</div>
+          <div class="log-line"><span class="ts">12:46:34</span><span class="lv">INFO</span>[6.0s] Page arrived page_main</div>
+          <div class="log-line"><span class="ts">12:46:34</span><span class="lv">INFO</span>Delay task "ryou_toppa" to 2026-10-21 13:36:34 (success</div>
+          <div class="log-line"><span class="ts">12:46:34</span><span class="lv">INFO</span>[ryou_toppa.scheduler.next_run] 2026-10-21 13:36:34</div>
+          <div class="log-line"><span class="ts">12:46:34</span><span class="lv">INFO</span>Auto save config</div>
+          <div class="log-line"><span class="ts">12:46:34</span><span class="lv">INFO</span>Scheduler: End task "RyouToppa"</div>
+          <div class="log-line"><span class="ts">12:46:34</span><span class="lv">INFO</span>No task pending</div>
+          <div class="log-line"><span class="ts">12:46:34</span><span class="lv">INFO</span>[Task] RyouToppa (Enable: 5, 2026-10-21 13:36:34)</div>
+          <div class="log-line"><span class="ts">12:46:34</span><span class="lv">INFO</span>Goto main page during wait</div>
+          <div class="log-line"><span class="ts">12:46:34</span><span class="lv">INFO</span>module.path: E:/ymyq/OnmyojiAutoScript/tasks/Goto...</div>
+          <div class="log-line"><span class="ts">12:46:34</span><span class="lv">INFO</span>Current task: GotoMain</div>
+          <div class="log-line"><span class="ts">12:46:34</span><span class="lv">INFO</span>Switch main costume to costume_main_16 (costume_mai...</div>
+          <div class="log-line"><span class="ts">12:46:34</span><span class="lv">INFO</span>Switch shikigami theme costume_shikigami_5 (costume_...</div>
+          <div class="log-line"><span class="ts">12:46:35</span><span class="lv">INFO</span>&lt;&lt;&lt; UI GOTO PAGE_MAIN &gt;&gt;&gt;</div>
+          <div class="log-line"><span class="ts">12:46:35</span><span class="lv">INFO</span>[1] page_main</div>
+          <div class="log-line"><span class="ts">12:46:36</span><span class="lv">INFO</span>[1.3s] Page arrived page_main</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- column 3: assets ---------- -->
+    <div class="col">
+      <div class="panel" style="flex:1">
+        <div class="panel-head">
+          <span class="panel-title">资产</span>
+          <span class="chip">10-21</span>
+          <span class="muted">10-20 23:55 → 10-21 10:52</span>
+          <div style="margin-left:auto">
+            <div class="icon-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="assets-body">
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#3a2f14,#6b5416);color:#ffd75e">🪙</div>
+            <div class="info"><div class="nm">金币</div><div class="val">2778.1万</div></div>
+            <div class="delta">+23万</div>
+          </div>
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#3a2414,#6b3a16);color:#ff9d5c">⚡</div>
+            <div class="info"><div class="nm">体力</div><div class="val">3.62万</div></div>
+            <div class="delta">+542</div>
+          </div>
+
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#3a1418,#6b1a20);color:#ff7a85">🔴</div>
+            <div class="info"><div class="nm">勾玉</div><div class="val">1.20万</div></div>
+            <div class="delta">+42</div>
+          </div>
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#1a243a,#243a6b);color:#8fb4ff">📜</div>
+            <div class="info"><div class="nm">神秘的符咒</div><div class="val">53</div></div>
+          </div>
+
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#3a1a14,#6b2a1a);color:#ff9a7a">🧘</div>
+            <div class="info"><div class="nm">御行达摩</div><div class="val">0</div></div>
+          </div>
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#2a1a3a,#4a2a6b);color:#c9a0ff">🧩</div>
+            <div class="info"><div class="nm">御行达摩碎片</div><div class="val">26</div></div>
+          </div>
+
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#2a1a3a,#4a2a6b);color:#c9a0ff">📃</div>
+            <div class="info"><div class="nm">现世符咒</div><div class="val">3</div></div>
+          </div>
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#1a2a3a,#2a4a6b);color:#8fd0ff">💎</div>
+            <div class="info"><div class="nm">魂玉</div><div class="val">0</div></div>
+          </div>
+
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#143a24,#1a6b3a);color:#7affb0">🐍</div>
+            <div class="info"><div class="nm">大蛇的逆鳞</div><div class="val">791</div></div>
+            <div class="delta">+4</div>
+          </div>
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#2a1a3a,#4a2a6b);color:#c9a0ff">👹</div>
+            <div class="info"><div class="nm">逢魔之魂</div><div class="val">453</div></div>
+          </div>
+
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#1a243a,#243a6b);color:#8fb4ff">🔑</div>
+            <div class="info"><div class="nm">御灵之境之钥</div><div class="val">2518</div></div>
+            <div class="delta">+3</div>
+          </div>
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#1a243a,#243a6b);color:#8fb4ff">🎫</div>
+            <div class="info"><div class="nm">百鬼夜行门票</div><div class="val">4000</div></div>
+            <div class="delta">+4</div>
+          </div>
+
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#3a2f14,#6b5416);color:#ffd75e">🏅</div>
+            <div class="info"><div class="nm">荣誉</div><div class="val">4230</div></div>
+          </div>
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#3a2f14,#6b5416);color:#ffd75e">🎖️</div>
+            <div class="info"><div class="nm">勋章</div><div class="val">7.85万</div></div>
+            <div class="delta">+1298</div>
+          </div>
+
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#3a2f14,#6b5416);color:#ffd75e">🏆</div>
+            <div class="info"><div class="nm">功勋</div><div class="val">1.17万</div></div>
+          </div>
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#3a1418,#6b1a20);color:#ff7a85">📕</div>
+            <div class="info"><div class="nm">绘卷碎片·大</div><div class="val">0</div></div>
+          </div>
+
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#143a24,#1a6b3a);color:#7affb0">📗</div>
+            <div class="info"><div class="nm">绘卷碎片·中</div><div class="val">0</div></div>
+          </div>
+          <div class="asset">
+            <div class="ico" style="background:linear-gradient(135deg,#1a243a,#243a6b);color:#8fb4ff">📘</div>
+            <div class="info"><div class="nm">绘卷碎片·小</div><div class="val">0</div></div>
+          </div>
+        </div>
+
+        <div class="assets-foot">18 项 · 每日 23:55 自动读取</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

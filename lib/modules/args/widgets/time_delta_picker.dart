@@ -10,6 +10,27 @@ class TimeDeltaPicker extends DateTimePickerBase {
 
 class TimeDeltaPickerState extends DateTimePickerBaseState {
   @override
+  List<String> get componentLabels => const ['天', '时', '分', '秒'];
+
+  @override
+  List<String> parseComponents(String value) {
+    final text = ensureTimeDeltaString(value);
+    final parts = text
+        .split(RegExp(r'\D+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    while (parts.length < 4) {
+      parts.insert(0, '0');
+    }
+    return parts.take(4).map(_pad).toList(growable: false);
+  }
+
+  @override
+  String joinComponents(List<String> parts) {
+    return '${parts[0]} ${parts[1]}:${parts[2]}:${parts[3]}';
+  }
+
+  @override
   void showPicker(context, dynamic value) {
     Pickers.showMultiPicker(
       context,
@@ -35,14 +56,6 @@ class TimeDeltaPickerState extends DateTimePickerBaseState {
     List result = [0, 0, 0, 0];
     if (value is String) {
       result = value.split(RegExp(r'\D+'));
-    }
-    if (result is double) {
-      final duration = Duration(seconds: value.toInt());
-      final day = duration.inDays.toString();
-      final hour = duration.inHours.toString();
-      final minute = duration.inMinutes.toString();
-      final seconds = duration.inSeconds.toString();
-      result = [day, hour, minute, seconds];
     }
     return result;
   }

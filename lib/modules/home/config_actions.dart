@@ -10,6 +10,7 @@ import 'package:oasx/utils/browser_download_io.dart'
     if (dart.library.html) 'package:oasx/utils/browser_download_web.dart';
 import 'package:oasx/utils/file_save_stub.dart'
     if (dart.library.io) 'package:oasx/utils/file_save_io.dart';
+import 'package:oasx/utils/app_toast.dart';
 
 class ConfigActions {
   const ConfigActions._();
@@ -41,7 +42,7 @@ class ConfigActions {
 
     final success = await scriptService.renameConfig(oldName, newName);
     if (!success) {
-      Get.snackbar(I18n.error.tr, '');
+      showToast(I18n.error.tr, '');
     }
     return success;
   }
@@ -107,7 +108,7 @@ class ConfigActions {
         Get.back();
         final success = await scriptService.deleteConfig(name);
         if (!success) {
-          Get.snackbar(I18n.error.tr, '');
+          showToast(I18n.error.tr, '');
         }
       },
       onCancel: () {},
@@ -123,7 +124,7 @@ class ConfigActions {
           payload.fileName,
           mimeType: 'application/json',
         );
-        Get.snackbar(I18n.tip.tr, I18n.configExportSuccess.tr);
+        showToast(I18n.tip.tr, I18n.configExportSuccess.tr);
         return;
       }
       final path = await FilePicker.platform.saveFile(
@@ -138,12 +139,12 @@ class ConfigActions {
       if (shouldWritePickedSavePath()) {
         await saveBytesToPath(path, payload.bytes);
       }
-      Get.snackbar(I18n.tip.tr, I18n.configExportSuccess.tr);
+      showToast(I18n.tip.tr, I18n.configExportSuccess.tr);
     } catch (e) {
       final message = e is ConfigTransferException
           ? e.message
           : I18n.configExportFailed.tr;
-      Get.snackbar(I18n.tip.tr, message);
+      showToast(I18n.tip.tr, message);
     }
   }
 }

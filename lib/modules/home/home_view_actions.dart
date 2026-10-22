@@ -10,16 +10,10 @@ extension _HomeViewActions on _HomeViewState {
           scriptService.scriptOrderList.isEmpty) {
         return _buildConnectionFailedView();
       }
-      return Padding(
-        padding: const EdgeInsets.all(12),
-        child: ConfigWorkbench(
-          controller: controller,
-          scriptService: scriptService,
-          loadingAddScript: _isAddingScript,
-          refreshingScripts: _isRefreshingScripts,
-          onAddScriptTap: _onAddScriptCardTap,
-          onRefreshScriptsTap: _onRefreshScriptsTap,
-        ),
+      return DashboardHome(
+        controller: controller,
+        scriptService: scriptService,
+        onAddScriptTap: _onAddScriptCardTap,
       );
     });
   }
@@ -50,6 +44,30 @@ extension _HomeViewActions on _HomeViewState {
               I18n.homeConnectionRetryHint.tr,
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 6),
+            Text(
+              '当前地址：${ApiClient().address}',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => Get.toNamed('/settings'),
+                  icon: const Icon(Icons.settings_rounded, size: 18),
+                  label: const Text('打开设置'),
+                ),
+                FilledButton.icon(
+                  onPressed: () => controller.retryStartupConnection(),
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('重试'),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -72,20 +90,5 @@ extension _HomeViewActions on _HomeViewState {
       return;
     }
     controller.setActiveScript(createdConfig);
-  }
-
-  Future<void> _onRefreshScriptsTap() async {
-    if (_isRefreshingScripts) {
-      return;
-    }
-    _setRefreshingScripts(true);
-    try {
-      await controller.retryStartupConnection();
-      controller.syncWorkspaceState();
-    } catch (_) {
-      Get.snackbar(I18n.loginError.tr, I18n.loginErrorMsg.tr);
-    } finally {
-      _setRefreshingScripts(false);
-    }
   }
 }

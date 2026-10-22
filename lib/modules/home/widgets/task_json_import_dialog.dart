@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:oasx/translation/i18n_content.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
+import 'package:oasx/utils/app_toast.dart';
 
 class TaskJsonImportRequest {
   const TaskJsonImportRequest({
@@ -173,11 +174,11 @@ class _TaskJsonImportDialogState extends State<TaskJsonImportDialog> {
           final path = uri.toFilePath();
           _selectFile(fileName: _fileNameFromPath(path), filePath: path);
         },
-        onError: (_) => Get.snackbar(I18n.tip.tr, I18n.taskJsonImportFailed.tr),
+        onError: (_) => showToast(I18n.tip.tr, I18n.taskJsonImportFailed.tr),
       );
       return;
     }
-    Get.snackbar(I18n.tip.tr, I18n.taskJsonImportFailed.tr);
+    showToast(I18n.tip.tr, I18n.taskJsonImportFailed.tr);
   }
 
   void _selectFile({

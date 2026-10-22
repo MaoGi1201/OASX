@@ -55,6 +55,8 @@ class ScriptStatisticsPanel extends StatelessWidget {
             canSortByTime: canSortByTime,
           ),
           const SizedBox(height: _kStatisticsPanelSectionSpacing),
+          _SummaryGrid(statistics: statistics),
+          const SizedBox(height: _kStatisticsPanelSectionSpacing),
           _ChartCard(
             controller: controller,
             entries: entries,
@@ -99,6 +101,130 @@ class ScriptStatisticsPanel extends StatelessWidget {
         controller.connectionState.value !=
             ScriptStatisticsConnectionState.error &&
         controller.availableDateKeys.isNotEmpty;
+  }
+}
+
+/// Compact summary metrics shown above the history chart.
+class _SummaryGrid extends StatelessWidget {
+  const _SummaryGrid({required this.statistics});
+
+  final ScriptStatisticsDay statistics;
+
+  @override
+  Widget build(BuildContext context) {
+    final runCount = statistics.totalTaskRunCount;
+    final avgSeconds = runCount == 0
+        ? 0.0
+        : statistics.totalRuntimeSeconds / runCount;
+    final items = <_SummaryItem>[
+      _SummaryItem(
+        icon: Icons.schedule_rounded,
+        label: I18n.homeStatsTotalDuration.tr,
+        value: formatStatisticsDuration(statistics.totalRuntimeSeconds),
+      ),
+      _SummaryItem(
+        icon: Icons.checklist_rounded,
+        label: '任务数',
+        value: '${statistics.taskCount}',
+      ),
+      _SummaryItem(
+        icon: Icons.repeat_rounded,
+        label: '运行次数',
+        value: '$runCount',
+      ),
+      _SummaryItem(
+        icon: Icons.sports_martial_arts_rounded,
+        label: '战斗次数',
+        value: '${statistics.totalBattleCount}',
+      ),
+      _SummaryItem(
+        icon: Icons.timelapse_rounded,
+        label: '平均单次',
+        value: formatStatisticsDuration(avgSeconds),
+      ),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth < 420 ? 2 : 3;
+        const spacing = _kStatisticsSummarySpacing;
+        final width =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final item in items)
+              SizedBox(
+                width: width,
+                child: _SummaryCard(item: item),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SummaryItem {
+  const _SummaryItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+}
+
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({required this.item});
+
+  final _SummaryItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.6),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(item.icon, size: 13, color: scheme.primary),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  item.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            item.value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
