@@ -200,13 +200,8 @@ class DashboardHome extends StatefulWidget {
 class _DashboardHomeState extends State<DashboardHome> {
   late DateTime _now;
   Timer? _clockTimer;
-  Worker? _scriptWorker;
   int _selectedDayIndex = 0;
   int _mobilePageIndex = 0;
-  bool _isDesktopMode = false;
-
-  /// 每个配置的运行环境（桌面端 / 模拟器），避免每次切标签都发一次请求。
-  final Map<String, bool> _deviceModeCache = <String, bool>{};
 
   HomeDashboardController get _controller => widget.controller;
 
@@ -219,58 +214,12 @@ class _DashboardHomeState extends State<DashboardHome> {
         setState(() => _now = DateTime.now());
       }
     });
-    _scriptWorker = ever<String>(
-      _controller.activeScriptName,
-      (name) => _loadDeviceMode(name.trim()),
-    );
-    final initialScript = _controller.activeScriptName.value.trim();
-    _loadDeviceMode(initialScript);
   }
 
   @override
   void dispose() {
-    _scriptWorker?.dispose();
     _clockTimer?.cancel();
     super.dispose();
-  }
-
-  /// Reads `device.emulator_control` from the Script config to decide whether
-  /// the current config runs on an emulator or the desktop client.
-  Future<void> _loadDeviceMode(String scriptName, {bool force = false}) async {
-    if (scriptName.isEmpty) {
-      if (mounted) {
-        setState(() => _isDesktopMode = false);
-      }
-      return;
-    }
-    final cached = _deviceModeCache[scriptName];
-    if (!force && cached != null) {
-      if (mounted && _isDesktopMode != cached) {
-        setState(() => _isDesktopMode = cached);
-      }
-      return;
-    }
-    try {
-      final args = await ApiClient().getScriptTask(scriptName, 'Script');
-      final device = args['device'];
-      String? control;
-      if (device is List) {
-        for (final item in device) {
-          if (item is Map && item['name'] == 'emulator_control') {
-            control = item['value']?.toString();
-            break;
-          }
-        }
-      }
-      final isDesktop = control == 'desktop';
-      _deviceModeCache[scriptName] = isDesktop;
-      if (!mounted) {
-        return;
-      }
-      setState(() => _isDesktopMode = isDesktop);
-    } catch (_) {
-      // Keep the previous mode on failure.
-    }
   }
 
   @override
@@ -290,20 +239,16 @@ class _DashboardHomeState extends State<DashboardHome> {
                   controller: _controller,
                   scriptService: widget.scriptService,
                   script: script,
-                  isDesktopMode: _isDesktopMode,
                   now: _now,
                   onAddScriptTap: widget.onAddScriptTap,
                   onOpenScriptConfig: script == null
                       ? null
-                      : () async {
-                          await showTaskConfigDialog(
+                      : () => showTaskConfigDialog(
                             context,
                             controller: _controller,
                             scriptName: script.name,
                             taskName: 'Script',
-                          );
-                          await _loadDeviceMode(script.name, force: true);
-                        },
+                          ),
                   onOpenGlobalConfig: script == null
                       ? null
                       : () => showTaskConfigDialog(
@@ -395,7 +340,6 @@ class _DashboardHeader extends StatelessWidget {
     required this.controller,
     required this.scriptService,
     required this.script,
-    required this.isDesktopMode,
     required this.now,
     required this.onAddScriptTap,
     required this.onOpenScriptConfig,
@@ -405,7 +349,6 @@ class _DashboardHeader extends StatelessWidget {
   final HomeDashboardController controller;
   final ScriptService scriptService;
   final ScriptModel? script;
-  final bool isDesktopMode;
   final DateTime now;
   final VoidCallback onAddScriptTap;
   final Future<void> Function()? onOpenScriptConfig;
@@ -486,12 +429,11 @@ class _DashboardHeader extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           _SquareButton(
-            tooltip: isDesktopMode ? '桌面版配置' : '模拟器配置',
+            // 这个分支只面向模拟器：固定图标与文案，不再区分桌面版。
+            tooltip: '模拟器配置',
             onTap: onOpenScriptConfig,
             child: Icon(
-              isDesktopMode
-                  ? Icons.computer_rounded
-                  : Icons.phone_android_rounded,
+              Icons.phone_android_rounded,
               size: 15,
               color: AppColors.text2,
             ),

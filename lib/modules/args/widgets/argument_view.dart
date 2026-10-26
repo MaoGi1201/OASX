@@ -100,6 +100,15 @@ class _ArgumentViewState extends State<ArgumentView> {
     );
   }
 
+  /// 该分支固定使用模拟器，emulator_control 不提供 desktop 选项。
+  List<String> _enumOptions(ArgumentModel model) {
+    final values = model.enumEnum ?? const <String>[];
+    if (model.title != 'emulator_control') {
+      return values;
+    }
+    return values.where((item) => item != 'desktop').toList(growable: false);
+  }
+
   Widget _buildFormSection() {
     final errorText =
         _argsController.fieldError(widget.getGroupName(), model.title);
@@ -147,7 +156,7 @@ class _ArgumentViewState extends State<ArgumentView> {
           ),
           style: TextStyle(fontSize: 13, color: AppColors.text),
           decoration: InputDecoration(errorText: errorText),
-          items: model.enumEnum!
+          items: _enumOptions(model)
               .map<DropdownMenuItem<String>>(
                 (e) => DropdownMenuItem(
                   value: e.toString(),
@@ -160,7 +169,7 @@ class _ArgumentViewState extends State<ArgumentView> {
                 ),
               )
               .toList(),
-          selectedItemBuilder: (context) => model.enumEnum!
+          selectedItemBuilder: (context) => _enumOptions(model)
               .map<Widget>(
                 (e) => Align(
                   alignment: Alignment.centerLeft,
