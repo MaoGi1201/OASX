@@ -37,6 +37,9 @@ Future<void> showConnectorDialog(
   }
   return showDialog<void>(
     context: context,
+    // 点空白处不关闭：勾选过程很容易误触外部，关掉就得重新勾一遍。
+    // 只有「取消 / 完成」按钮会关闭弹窗。
+    barrierDismissible: false,
     builder: (dialogContext) => _ConnectorDialog(
       controller: controller,
       sourceScript: sourceScript,
@@ -171,6 +174,220 @@ class _ConnectorDialog extends StatelessWidget {
         ],
       );
     });
+  }
+}
+
+/// 打开「全部配置」面板：网格一览所有配置，带搜索与状态点，点一下即切换。
+Future<void> showAllConfigsDialog(
+  BuildContext context, {
+  required HomeDashboardController controller,
+  required ScriptService scriptService,
+}) {
+  return showDialog<void>(
+    context: context,
+    builder: (_) => _AllConfigsDialog(
+      controller: controller,
+      scriptService: scriptService,
+    ),
+  );
+}
+
+class _AllConfigsDialog extends StatefulWidget {
+  const _AllConfigsDialog({
+    required this.controller,
+    required this.scriptService,
+  });
+
+  final HomeDashboardController controller;
+  final ScriptService scriptService;
+
+  @override
+  State<_AllConfigsDialog> createState() => _AllConfigsDialogState();
+}
+
+class _AllConfigsDialogState extends State<_AllConfigsDialog> {
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final names = widget.scriptService.scriptOrderList;
+      final activeName = widget.controller.activeScriptName.value.trim();
+      final keyword = _query.trim().toLowerCase();
+      final filtered = keyword.isEmpty
+          ? names
+          : names
+              .where((name) => name.toLowerCase().contains(keyword))
+              .toList();
+      var runningCount = 0;
+      for (final name in names) {
+        if (_stateOf(name) == ScriptState.running) {
+          runningCount++;
+        }
+      }
+
+      // 窗口较小时按可用空间收缩，避免弹窗溢出。
+      final size = MediaQuery.sizeOf(context);
+      final panelWidth = (size.width - 96).clamp(240.0, 520.0);
+      final panelHeight = (size.height - 240).clamp(200.0, 360.0);
+
+      return AlertDialog(
+        title: Row(
+          children: [
+            const Text('全部配置'),
+            const SizedBox(width: 8),
+            Text(
+              '共 ${names.length} 个 · 运行中 $runningCount',
+              style: TextStyle(fontSize: 12, color: AppColors.text3),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: panelWidth,
+          height: panelHeight,
+          child: Column(
+            children: [
+              TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: const TextStyle(fontSize: 13),
+                decoration: const InputDecoration(
+                  hintText: '搜索配置名…',
+                  isDense: true,
+                  prefixIcon: Icon(Icons.search_rounded, size: 18),
+                ),
+                onChanged: (value) => setState(() => _query = value),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: filtered.isEmpty
+                    ? Center(
+                        child: Text(
+                          '没有匹配的配置',
+                          style: TextStyle(fontSize: 12.5, color: AppColors.text3),
+                        ),
+                      )
+                    : GridView.builder(
+                        padding: EdgeInsets.zero,
+                        gridDelegate:
+                            const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 168,
+                          mainAxisExtent: 42,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                        ),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          final name = filtered[index];
+                          return Obx(
+                            () => _AllConfigsTile(
+                              name: name,
+                              active: name == activeName,
+                              state: _stateOf(name),
+                              linked: widget.controller.hasActiveLinkFor(name),
+                              onTap: () {
+                                widget.controller.setActiveScript(name);
+                                Navigator.of(context).pop();
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('关闭'),
+          ),
+        ],
+      );
+    });
+  }
+
+  ScriptState _stateOf(String name) {
+    return widget.scriptService.findScriptModel(name)?.state.value ??
+        ScriptState.inactive;
+  }
+}
+
+/// 网格里的单个配置项：状态点 + 名称（+ 连接标记）。
+class _AllConfigsTile extends StatelessWidget {
+  const _AllConfigsTile({
+    required this.name,
+    required this.active,
+    required this.state,
+    required this.linked,
+    required this.onTap,
+  });
+
+  final String name;
+  final bool active;
+  final ScriptState state;
+  final bool linked;
+  final VoidCallback onTap;
+
+  /// 运行中=绿，卡死/异常=黄，更新中=蓝，未启动=灰（与标签条一致）。
+  Color get _accent {
+    return switch (state) {
+      ScriptState.running => AppColors.green,
+      ScriptState.warning => AppColors.yellow,
+      ScriptState.updating => AppColors.blue,
+      ScriptState.inactive => AppColors.text3,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: active ? AppColors.tealDim : AppColors.surface2,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: active
+                ? AppColors.teal.withValues(alpha: 0.55)
+                : AppColors.border,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(color: _accent, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: active ? AppColors.teal : AppColors.text,
+                  fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ),
+            if (linked)
+              Icon(Icons.link_rounded, size: 12, color: AppColors.teal),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -393,6 +610,16 @@ class _DashboardHeader extends StatelessWidget {
                     ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          // 配置多时用它一览全部（带搜索与状态点），手机界面同样保留。
+          _AllConfigsButton(
+            count: names.length,
+            onTap: () => showAllConfigsDialog(
+              context,
+              controller: controller,
+              scriptService: scriptService,
             ),
           ),
           // 手机界面只保留配置标签，+/− 及其右侧的所有按钮都隐藏。
@@ -774,6 +1001,53 @@ VoidCallback? _dismissingTooltipTap(VoidCallback? onTap) {
     Tooltip.dismissAllToolTips();
     onTap();
   };
+}
+
+/// 顶栏「全部 N」按钮：点开配置网格面板。
+class _AllConfigsButton extends StatelessWidget {
+  const _AllConfigsButton({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '全部配置',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(9),
+        onTap: _dismissingTooltipTap(onTap),
+        child: Container(
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: AppColors.surface3,
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.grid_view_rounded,
+                size: 13,
+                color: AppColors.text2,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                '全部 $count',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.text2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _SquareButton extends StatelessWidget {
