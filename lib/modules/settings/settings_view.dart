@@ -79,8 +79,11 @@ class _SettingsViewState extends State<SettingsView> {
   @override
   Widget build(BuildContext context) {
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    // Material / Card 内部对颜色做 200ms 补间，主题切换时会先闪一下旧色。
+    // 换 key 让设置页内容整棵重挂载，直接以最终配色首帧渲染。
     final body = SafeArea(
       child: LayoutBuilder(
+        key: ValueKey<Brightness>(Theme.of(context).brightness),
         builder: (context, constraints) {
           final isWide = constraints.maxWidth >= _wideLayoutBreakpoint;
           final settingList = _buildSettingList(keyboardInset);
@@ -244,10 +247,10 @@ class _SettingsViewState extends State<SettingsView> {
       width: _navWidth,
       child: Card(
         elevation: 0,
-        color: AppColors.card,
+        color: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: AppColors.border),
+          side: BorderSide(color: Theme.of(context).dividerColor),
         ),
         child: Padding(
           padding: const EdgeInsets.all(8),
@@ -271,7 +274,9 @@ class _SettingsViewState extends State<SettingsView> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(9),
                       color: isSelected
-                          ? AppColors.tealDim
+                          ? AppColors.tealDimFor(
+                              Theme.of(context).brightness,
+                            )
                           : Colors.transparent,
                     ),
                     child: Text(
@@ -281,8 +286,8 @@ class _SettingsViewState extends State<SettingsView> {
                         fontWeight:
                             isSelected ? FontWeight.w600 : FontWeight.w400,
                         color: isSelected
-                            ? AppColors.teal
-                            : AppColors.text2,
+                            ? AppColors.tealFor(Theme.of(context).brightness)
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
