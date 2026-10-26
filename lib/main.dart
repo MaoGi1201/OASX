@@ -44,7 +44,6 @@ class OASXApp extends StatelessWidget {
       builder: (context) {
         return GetMaterialApp(
           debugShowCheckedModeBanner: false,
-          builder: DevicePreview.appBuilder,
           scrollBehavior: GlobalBehavior(),
           translations: Messages(),
           locale: localeService.currentLocale,
@@ -54,8 +53,98 @@ class OASXApp extends StatelessWidget {
           getPages: Routes.routes,
           theme: lightTheme,
           darkTheme: darkTheme,
+          // 界面里大量取色是 AppColors / Get.isDarkMode 这类静态值，切换时瞬间生效；
+          // 而 MaterialApp 内部对 ThemeData 做 200ms 补间，两者不同步就会出现
+          // 「先白后黑」的闪一下。这里在 builder 里显式给一份"最终"主题，
+          // 让所有 Theme.of 的读取也立刻拿到新值，整屏一次性翻转。
+          builder: (context, child) {
+            final themeService = Get.isRegistered<ThemeService>()
+                ? Get.find<ThemeService>()
+                : null;
+            final resolved = (themeService?.isDarkMode ?? false)
+                ? darkTheme
+                : lightTheme;
+            return DevicePreview.appBuilder(
+              context,
+              _ThemeFadeOverlay(
+                brightness: resolved.brightness,
+                background: resolved.scaffoldBackgroundColor,
+                child: Theme(
+                  data: resolved,
+                  child: child ?? const SizedBox.shrink(),
+                ),
+              ),
+            );
+          },
         );
       },
+    );
+  }
+}
+
+/// 主题切换时的柔和过渡：整屏先铺一层新主题的底色，再用 160ms 淡出，
+/// 让"瞬间翻转"看起来像一次柔和的淡入。
+///
+/// 为什么不直接对页面做 cross-fade：新旧两帧都会用同一份新主题重建，
+/// 交叉淡入淡出时看到的仍是新配色，白边反而会在两帧叠加时透出来。
+class _ThemeFadeOverlay extends StatefulWidget {
+  const _ThemeFadeOverlay({
+    required this.brightness,
+    required this.background,
+    required this.child,
+  });
+
+  final Brightness brightness;
+  final Color background;
+  final Widget child;
+
+  @override
+  State<_ThemeFadeOverlay> createState() => _ThemeFadeOverlayState();
+}
+
+class _ThemeFadeOverlayState extends State<_ThemeFadeOverlay> {
+  int _fadeToken = 0;
+
+  @override
+  void didUpdateWidget(covariant _ThemeFadeOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.brightness != widget.brightness) {
+      _fadeToken++;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        widget.child,
+        if (_fadeToken > 0)
+          IgnorePointer(
+            child: _FadeAway(
+              key: ValueKey<int>(_fadeToken),
+              color: widget.background,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _FadeAway extends StatelessWidget {
+  const _FadeAway({super.key, required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 1, end: 0),
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOut,
+      builder: (context, value, _) => ColoredBox(
+        color: color.withValues(alpha: value),
+      ),
     );
   }
 }

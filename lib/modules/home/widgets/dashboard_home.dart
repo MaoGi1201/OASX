@@ -16,6 +16,7 @@ import 'package:oasx/service/script_service.dart';
 import 'package:oasx/service/theme_service.dart';
 import 'package:oasx/translation/i18n_content.dart';
 import 'package:oasx/utils/app_toast.dart';
+import 'package:oasx/utils/logger.dart';
 
 // ---------------------------------------------------------------------------
 // Palette: light (day) and dark (night) variants selected by the app theme.
@@ -76,7 +77,7 @@ class _ConnectorDialog extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '勾选后，这些配置会跟随「$sourceScript」一起启停、一起执行任务。',
+                '勾选的配置会一起启停、一起执行任务。',
                 style: TextStyle(
                   fontSize: 12.5,
                   height: 1.5,
@@ -91,7 +92,6 @@ class _ConnectorDialog extends StatelessWidget {
                   itemCount: allNames.length,
                   itemBuilder: (context, index) {
                     final name = allNames[index];
-                    final isSource = name == sourceScript;
                     final selected = linked.contains(name);
                     return InkWell(
                       borderRadius: BorderRadius.circular(8),
@@ -121,14 +121,7 @@ class _ConnectorDialog extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            if (isSource)
-                              Text(
-                                '当前',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.text3,
-                                ),
-                              ),
+
                           ],
                         ),
                       ),
@@ -165,7 +158,9 @@ class _ConnectorDialog extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () {
-              if (controller.validLinkedScripts.isEmpty &&
+              // 只勾了自己（或什么都没勾）等于没连接：直接关掉连接模式，
+              // 避免顶栏留下"已连接"的假状态。
+              if (controller.validLinkedScripts.length < 2 &&
                   controller.isLinkModeEnabled.value) {
                 controller.toggleLinkMode();
               }
@@ -224,11 +219,18 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   @override
   Widget build(BuildContext context) {
+    // 读 Theme 而不是 AppColors：AppColors 是全局静态取色，不产生依赖，
+    // 主题切换时整块仪表盘（日志、统计等大量用 AppColors/Get.isDarkMode 的
+    // 子组件）不会重建，就会停留在旧配色上。
+    final brightness = Theme.of(context).brightness;
     return ColoredBox(
-      color: AppColors.bg,
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: Obx(() {
         final script = _controller.activeScriptModel;
         final scriptName = _controller.activeScriptName.value.trim();
+        // Material / Card 内部对颜色做 200ms 补间，主题切换时会先闪一下旧色。
+        // 只让「内容区」换 key 重挂载（header 保持常驻，否则悬停中的 Tooltip
+        // 会变成孤儿浮层一直停在屏幕上）。
         return LayoutBuilder(
           builder: (context, constraints) {
             // Phones / narrow windows show one page at a time.
@@ -259,11 +261,14 @@ class _DashboardHomeState extends State<DashboardHome> {
                           ),
                 ),
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                    child: compact
-                        ? _buildCompactBody(script, scriptName)
-                        : _buildWideBody(script, scriptName),
+                  child: KeyedSubtree(
+                    key: ValueKey<Brightness>(brightness),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                      child: compact
+                          ? _buildCompactBody(script, scriptName)
+                          : _buildWideBody(script, scriptName),
+                    ),
                   ),
                 ),
               ],
@@ -307,7 +312,7 @@ class _DashboardHomeState extends State<DashboardHome> {
             0 => _buildTasksColumn(script),
             1 => _buildOverviewColumn(script),
             2 => _LogsColumn(scriptName: scriptName),
-            _ => const _StatisticsColumn(),
+            _ => _StatisticsColumn(Theme.of(context).brightness),
           },
         ),
       ],
@@ -380,8 +385,7 @@ class _DashboardHeader extends StatelessWidget {
                           name: name,
                           active: name == activeName,
                           state: _stateOf(name),
-                          linked: controller.isLinkModeEnabled.value &&
-                              controller.isScriptLinked(name),
+                          linked: controller.hasActiveLinkFor(name),
                           onTap: () => controller.setActiveScript(name),
                           onTogglePower: () => _togglePower(name),
                         ),
@@ -758,6 +762,20 @@ class _AccountTab extends StatelessWidget {
   }
 }
 
+/// 点击后立刻收起悬停提示。
+///
+/// Material 的 Tooltip 在鼠标停留期间会一直显示，点击后仍然挂着会挡视线；
+/// 这里在触发点击前先收掉。提示本身不会失效——鼠标移开再移回来仍会重新显示。
+VoidCallback? _dismissingTooltipTap(VoidCallback? onTap) {
+  if (onTap == null) {
+    return null;
+  }
+  return () {
+    Tooltip.dismissAllToolTips();
+    onTap();
+  };
+}
+
 class _SquareButton extends StatelessWidget {
   const _SquareButton({
     required this.child,
@@ -775,7 +793,7 @@ class _SquareButton extends StatelessWidget {
       message: tooltip,
       child: InkWell(
         borderRadius: BorderRadius.circular(7),
-        onTap: onTap,
+        onTap: _dismissingTooltipTap(onTap),
         child: Container(
           width: 34,
           height: 34,
@@ -1783,7 +1801,7 @@ class _RowIconButton extends StatelessWidget {
       message: tooltip,
       child: InkWell(
         borderRadius: BorderRadius.circular(7),
-        onTap: onTap,
+        onTap: _dismissingTooltipTap(onTap),
         child: filled
             ? Container(
                 width: 26,
@@ -1830,6 +1848,9 @@ class _OverviewColumnState extends State<_OverviewColumn> {
   ScriptStatisticsDay? _todayStats;
   DateTime? _statsFetchedAt;
   bool _statsLoading = false;
+  Timer? _statsTimer;
+
+  static const int _kTodayStatsRefreshSeconds = 60;
 
   /// Today's date key (`yyyy-MM-dd`) used by the statistics endpoints.
   static String _todayKey() {
@@ -1852,40 +1873,38 @@ class _OverviewColumnState extends State<_OverviewColumn> {
     return '${first.timeText} ${first.name.tr}';
   }
 
-  /// Refreshes today's totals at most once per 60 seconds.
+  /// 拉取当前配置「今日」的统计数字（卡片上的运行时长 / 任务次数 / 战斗场次）。
   ///
-  /// Triggered by rebuilds (schedule pushes + the dashboard clock tick), so no
-  /// extra timer is needed.
-  void _maybeRefreshTodayStats() {
-    final script = widget.script;
-    if (script == null || _statsLoading) {
+  /// 由定时器和配置切换触发，不再在 build 里调用：
+  /// - 失败时不写 `_statsFetchedAt`，下一轮定时器会自然重试；
+  /// - 成功才记录时间戳，避免"请求失败要等满 60 秒"。
+  Future<void> _refreshTodayStats({bool force = false}) async {
+    final name = widget.script?.name.trim() ?? '';
+    if (name.isEmpty || _statsLoading) {
       return;
     }
-    final name = script.name.trim();
-    if (name.isEmpty) {
-      return;
-    }
-    final now = DateTime.now();
     final fetchedAt = _statsFetchedAt;
-    if (fetchedAt != null &&
-        now.difference(fetchedAt) < const Duration(seconds: 60)) {
+    if (!force &&
+        fetchedAt != null &&
+        DateTime.now().difference(fetchedAt) <
+            const Duration(seconds: _kTodayStatsRefreshSeconds)) {
       return;
     }
-    _statsFetchedAt = now;
     _statsLoading = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        final day = await ApiClient().getScriptStatisticsDay(name, _todayKey());
-        if (!mounted || widget.script?.name.trim() != name) {
-          return;
-        }
-        setState(() => _todayStats = day);
-      } catch (_) {
-        // Keep the previous numbers; the next schedule event retries.
-      } finally {
-        _statsLoading = false;
+    try {
+      final day = await ApiClient().getScriptStatisticsDay(name, _todayKey());
+      if (!mounted || widget.script?.name.trim() != name) {
+        return;
       }
-    });
+      setState(() {
+        _todayStats = day;
+        _statsFetchedAt = DateTime.now();
+      });
+    } catch (error) {
+      logger.e('今日统计刷新失败（$name）: $error');
+    } finally {
+      _statsLoading = false;
+    }
   }
 
   /// Renames the active config from the card title.
@@ -1920,6 +1939,11 @@ class _OverviewColumnState extends State<_OverviewColumn> {
   void initState() {
     super.initState();
     _loadMenu();
+    _refreshTodayStats();
+    _statsTimer = Timer.periodic(
+      const Duration(seconds: _kTodayStatsRefreshSeconds),
+      (_) => _refreshTodayStats(),
+    );
   }
 
   Future<bool> _loadMenu() async {
@@ -1955,6 +1979,7 @@ class _OverviewColumnState extends State<_OverviewColumn> {
 
   @override
   void dispose() {
+    _statsTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -1967,6 +1992,7 @@ class _OverviewColumnState extends State<_OverviewColumn> {
       _loadMenu();
       _todayStats = null;
       _statsFetchedAt = null;
+      _refreshTodayStats(force: true);
     }
   }
 
@@ -2019,7 +2045,6 @@ class _OverviewColumnState extends State<_OverviewColumn> {
           : (entries.isEmpty ? null : entries.first.name);
       final canToggle = script != null && script.name.trim().isNotEmpty;
       final nextTaskText = _nextTaskText(entries, runningTaskName);
-      _maybeRefreshTodayStats();
       final enabledTaskNames =
           script == null ? const <String>{} : controller.enabledTaskNamesFor(script);
       var enabledInCatalog = 0;
@@ -2171,7 +2196,8 @@ class _LogsColumn extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
       child: scriptName.isEmpty
-          ? const _Panel(child: _EmptyHint(label: '请选择脚本'))
+          // ignore: prefer_const_constructors
+          ? _Panel(child: const _EmptyHint(label: '请选择脚本'))
           : LogCenterPanel(scriptName: scriptName),
     );
   }
@@ -2472,7 +2498,7 @@ class _BulkIconButton extends StatelessWidget {
       message: tooltip,
       child: InkWell(
         borderRadius: BorderRadius.circular(7),
-        onTap: enabled ? onTap : null,
+        onTap: enabled ? _dismissingTooltipTap(onTap) : null,
         child: Container(
           width: 30,
           height: 30,
@@ -2512,7 +2538,7 @@ class _ConnectorButton extends StatelessWidget {
       message: linked ? '连接器（已连接）' : '连接器',
       child: InkWell(
         borderRadius: BorderRadius.circular(7),
-        onTap: onTap,
+        onTap: _dismissingTooltipTap(onTap),
         child: Container(
           width: 30,
           height: 30,
@@ -2733,7 +2759,7 @@ class _RightColumnState extends State<_RightColumn> {
         Expanded(
           child: _tab == 0
               ? _LogsColumn(scriptName: widget.scriptName)
-              : const _StatisticsColumn(),
+              : _StatisticsColumn(Theme.of(context).brightness),
         ),
       ],
     );
@@ -2746,11 +2772,16 @@ class _RightColumnState extends State<_RightColumn> {
 /// canonicalized `const` widget is skipped when the app theme flips, which
 /// left the panel in the old palette after switching day / night mode.
 class _StatisticsColumn extends StatelessWidget {
-  const _StatisticsColumn();
+  const _StatisticsColumn(this.brightness);
+
+  /// 只用于让本组件在深/浅色切换时重建（内部大量取色是静态的）。
+  final Brightness brightness;
 
   @override
   Widget build(BuildContext context) {
-    return const _Panel(child: ScriptStatisticsPanel());
+    // 不用 const：主题切换后需要重新构建，_Panel 才会取到新配色。
+    // ignore: prefer_const_constructors
+    return _Panel(child: const ScriptStatisticsPanel());
   }
 }
 

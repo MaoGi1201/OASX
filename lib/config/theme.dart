@@ -194,6 +194,20 @@ ThemeData _buildTheme(Brightness brightness) {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ),
     progressIndicatorTheme: ProgressIndicatorThemeData(color: teal),
+    // Material 3 默认用 colorScheme.primary/onPrimary 组合，深色下拇指会接近黑色，
+    // 在青色轨道上几乎看不见；这里显式指定白色拇指 + 青色轨道。
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? Colors.white
+            : AppColors.text3For(brightness),
+      ),
+      trackColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected) ? teal : surface2,
+      ),
+      trackOutlineColor: WidgetStatePropertyAll(border),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    ),
     segmentedButtonTheme: SegmentedButtonThemeData(
       style: ButtonStyle(
         backgroundColor: WidgetStateProperty.resolveWith(

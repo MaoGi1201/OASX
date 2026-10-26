@@ -63,10 +63,12 @@ class ScriptStatisticsHistoryChart extends StatelessWidget {
     final interval = _resolveInterval(maxValue);
     final axisMax = _resolveAxisMax(maxValue, interval);
     final ticks = _buildTicks(axisMax, interval);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _HistoryAxisHeader(
+    // 图表更新频繁，单独隔离重绘，避免连带整页重排。
+    return RepaintBoundary(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _HistoryAxisHeader(
           ticks: ticks,
           axisMax: axisMax,
           metric: metric,
@@ -97,8 +99,9 @@ class ScriptStatisticsHistoryChart extends StatelessWidget {
               );
             },
           ),
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -305,9 +308,9 @@ class _HistoryBarRow extends StatelessWidget {
                             borderRadius: BorderRadius.circular(999),
                           ),
                         ),
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeOutCubic,
+                        // 普通 Container：每根柱子各带一个隐式动画时，数据一更新
+                        // 会同时启动 N 条动画（30 天 = 30 条），是掉帧的主要来源。
+                        Container(
                           width: barWidth,
                           height: focused ? 28 : 24,
                           decoration: BoxDecoration(
