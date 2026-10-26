@@ -55,6 +55,53 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
       return HomeBulkQuickScheduleResult.skipped;
     }
     final source = scriptName.trim();
+    if (source.isEmpty) {
+      return HomeBulkQuickScheduleResult.skipped;
+    }
+    // 连接器勾选后，批量操作要对同一组配置一起执行。
+    final targets = linkedScopeScriptsFor(source);
+    bulkQuickScheduleMode.value = runNow
+        ? HomeBulkQuickScheduleMode.runNow
+        : HomeBulkQuickScheduleMode.waitNow;
+    try {
+      var anyTimedOut = false;
+      var anyFailed = false;
+      var anyDone = false;
+      for (final target in targets) {
+        final result = await _bulkQuickScheduleTasksForSingle(target, runNow);
+        switch (result) {
+          case HomeBulkQuickScheduleResult.completed:
+            anyDone = true;
+          case HomeBulkQuickScheduleResult.timedOut:
+            anyTimedOut = true;
+            anyDone = true;
+          case HomeBulkQuickScheduleResult.failed:
+            anyFailed = true;
+            anyDone = true;
+          case HomeBulkQuickScheduleResult.skipped:
+            break;
+        }
+      }
+      if (!anyDone) {
+        return HomeBulkQuickScheduleResult.skipped;
+      }
+      if (anyTimedOut) {
+        return HomeBulkQuickScheduleResult.timedOut;
+      }
+      return anyFailed
+          ? HomeBulkQuickScheduleResult.failed
+          : HomeBulkQuickScheduleResult.completed;
+    } finally {
+      bulkQuickScheduleMode.value = HomeBulkQuickScheduleMode.none;
+    }
+  }
+
+  /// 单个配置的批量执行，返回值不再改动 [bulkQuickScheduleMode]。
+  Future<HomeBulkQuickScheduleResult> _bulkQuickScheduleTasksForSingle(
+    String scriptName,
+    bool runNow,
+  ) async {
+    final source = scriptName.trim();
     final model = _scriptService.findScriptModel(source);
     final taskNames = model == null
         ? const <String>[]
@@ -62,23 +109,16 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
     if (source.isEmpty || taskNames.isEmpty) {
       return HomeBulkQuickScheduleResult.skipped;
     }
-    bulkQuickScheduleMode.value = runNow
-        ? HomeBulkQuickScheduleMode.runNow
-        : HomeBulkQuickScheduleMode.waitNow;
-    try {
-      final result = await Future.any<bool?>([
-        _runBulkQuickScheduleTasks(source, taskNames, runNow),
-        Future<bool?>.delayed(_bulkQuickScheduleTimeout, () => null),
-      ]);
-      if (result == null) {
-        return HomeBulkQuickScheduleResult.timedOut;
-      }
-      return result
-          ? HomeBulkQuickScheduleResult.completed
-          : HomeBulkQuickScheduleResult.failed;
-    } finally {
-      bulkQuickScheduleMode.value = HomeBulkQuickScheduleMode.none;
+    final result = await Future.any<bool?>([
+      _runBulkQuickScheduleTasks(source, taskNames, runNow),
+      Future<bool?>.delayed(_bulkQuickScheduleTimeout, () => null),
+    ]);
+    if (result == null) {
+      return HomeBulkQuickScheduleResult.timedOut;
     }
+    return result
+        ? HomeBulkQuickScheduleResult.completed
+        : HomeBulkQuickScheduleResult.failed;
   }
 
   List<HomeWorkbenchTab> workbenchTabsFor(HomeWorkbenchLayoutMode mode) {

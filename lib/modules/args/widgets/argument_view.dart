@@ -136,7 +136,16 @@ class _ArgumentViewState extends State<ArgumentView> {
       'enum' => DropdownButtonFormField<String>(
           initialValue: model.value.toString(),
           isExpanded: true,
+          isDense: true,
           menuMaxHeight: Get.height * 0.5,
+          borderRadius: BorderRadius.circular(10),
+          dropdownColor: AppColors.panel,
+          icon: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 18,
+            color: AppColors.text3,
+          ),
+          style: TextStyle(fontSize: 13, color: AppColors.text),
           decoration: InputDecoration(errorText: errorText),
           items: model.enumEnum!
               .map<DropdownMenuItem<String>>(
@@ -144,7 +153,7 @@ class _ArgumentViewState extends State<ArgumentView> {
                   value: e.toString(),
                   child: Text(
                     e.toString().tr,
-                    style: Theme.of(context).textTheme.bodyLarge,
+                    style: TextStyle(fontSize: 13, color: AppColors.text),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -159,7 +168,7 @@ class _ArgumentViewState extends State<ArgumentView> {
                     e.toString().tr,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyLarge,
+                    style: TextStyle(fontSize: 13, color: AppColors.text),
                   ),
                 ),
               )

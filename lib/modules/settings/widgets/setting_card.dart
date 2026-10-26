@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:oasx/config/app_colors.dart';
 import 'package:oasx/modules/settings/widgets/setting_item.dart';
-import 'package:styled_widget/styled_widget.dart';
 
 class SettingCard extends StatelessWidget {
   final String title;
@@ -15,25 +15,33 @@ class SettingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 0,
+      color: AppColors.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: AppColors.border),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: <Widget>[
-          Text(
-            title,
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          ...items
-              .map(
-                (item) => item.padding(bottom: 5),
-              )
-              .toList(),
-        ].toColumn(crossAxisAlignment: CrossAxisAlignment.start),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 10),
+            for (final item in items)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: item,
+              ),
+          ],
+        ),
       ),
     );
   }

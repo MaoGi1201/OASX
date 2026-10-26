@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:oasx/config/app_colors.dart';
 import 'package:get/get.dart';
 import 'package:oasx/api/api_client.dart';
 import 'package:oasx/api/config_transfer_models.dart';
@@ -99,16 +100,36 @@ class _AddConfigDialogBodyState extends State<AddConfigDialogBody> {
   }
 
   Widget _templateDropdown() {
-    return DropdownButton<String>(
-      value: _selectedTemplate,
-      menuMaxHeight: 300,
-      isExpanded: true,
-      items: widget.configAll
-          .map<DropdownMenuItem<String>>(
-            (e) => DropdownMenuItem(value: e, child: Text(e)),
-          )
-          .toList(),
-      onChanged: _isSubmitting ? null : _setTemplate,
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface2,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedTemplate,
+          menuMaxHeight: 300,
+          isExpanded: true,
+          isDense: true,
+          dropdownColor: AppColors.panel,
+          borderRadius: BorderRadius.circular(10),
+          icon: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 18,
+            color: AppColors.text3,
+          ),
+          style: TextStyle(fontSize: 13, color: AppColors.text),
+          items: widget.configAll
+              .map<DropdownMenuItem<String>>(
+                (e) => DropdownMenuItem(value: e, child: Text(e)),
+              )
+              .toList(),
+          onChanged: _isSubmitting ? null : _setTemplate,
+        ),
+      ),
     );
   }
 

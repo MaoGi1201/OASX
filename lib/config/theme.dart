@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:chinese_font_library/chinese_font_library.dart';
+import 'package:oasx/config/app_colors.dart';
 
 const List<String> _webChineseFontFallback = <String>[
   'PingFang SC',
@@ -42,25 +43,187 @@ const Map<String, Color> colorSeedMap = {
   'Pink': Colors.pink
 };
 
-ThemeData lightTheme = ThemeData(
-  colorSchemeSeed: ColorSeed.baseColor.color,
-  useMaterial3: true,
-  brightness: Brightness.light,
-  textTheme: _buildTextTheme(Brightness.light),
-  scaffoldBackgroundColor: const Color.fromRGBO(255, 251, 255, 1),
-  navigationRailTheme: const NavigationRailThemeData(
-      backgroundColor: Color.fromRGBO(255, 251, 255, 1)),
-);
+ThemeData lightTheme = _buildTheme(Brightness.light);
+ThemeData darkTheme = _buildTheme(Brightness.dark);
 
-ThemeData darkTheme = ThemeData(
-  useMaterial3: true,
-  colorSchemeSeed: ColorSeed.baseColor.color,
-  brightness: Brightness.dark,
-  textTheme: _buildTextTheme(Brightness.dark),
-  scaffoldBackgroundColor: const Color.fromRGBO(49, 48, 51, 1),
-  navigationRailTheme: const NavigationRailThemeData(
-      backgroundColor: Color.fromRGBO(49, 48, 51, 1)),
-);
+/// Builds the app theme from [AppColors] so every Material component
+/// (dialogs, cards, inputs, menus, tooltips) shares one look.
+ThemeData _buildTheme(Brightness brightness) {
+  final teal = AppColors.tealFor(brightness);
+  final text = AppColors.textFor(brightness);
+  final text2 = AppColors.text2For(brightness);
+  final border = AppColors.borderFor(brightness);
+  final surface2 = AppColors.surface2For(brightness);
+  final radius = BorderRadius.circular(10);
+
+  final scheme = ColorScheme.fromSeed(
+    seedColor: AppColors.seed,
+    brightness: brightness,
+  ).copyWith(
+    primary: teal,
+    onPrimary: AppColors.onAccentFor(brightness),
+    surface: AppColors.panelFor(brightness),
+    onSurface: text,
+    onSurfaceVariant: text2,
+    outline: border,
+    outlineVariant: border,
+    error: AppColors.redFor(brightness),
+    surfaceContainerHighest: surface2,
+    surfaceContainerHigh: AppColors.surface3For(brightness),
+    surfaceContainer: surface2,
+    surfaceContainerLow: AppColors.panelFor(brightness),
+  );
+
+  return ThemeData(
+    useMaterial3: true,
+    brightness: brightness,
+    colorScheme: scheme,
+    textTheme: _buildTextTheme(brightness),
+    scaffoldBackgroundColor: AppColors.bgFor(brightness),
+    canvasColor: AppColors.panelFor(brightness),
+    cardColor: AppColors.cardFor(brightness),
+    dividerColor: border,
+    shadowColor: Colors.transparent,
+    splashFactory: InkSparkle.splashFactory,
+    navigationRailTheme: NavigationRailThemeData(
+      backgroundColor: AppColors.bgFor(brightness),
+      indicatorColor: AppColors.tealDimFor(brightness),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: AppColors.panelFor(brightness),
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: border),
+      ),
+      titleTextStyle: TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: text,
+      ),
+      contentTextStyle: TextStyle(fontSize: 13, color: text2),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+    ),
+    cardTheme: CardThemeData(
+      color: AppColors.cardFor(brightness),
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: border),
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      isDense: true,
+      filled: true,
+      fillColor: surface2,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      hintStyle: TextStyle(fontSize: 13, color: AppColors.text3For(brightness)),
+      labelStyle: TextStyle(fontSize: 13, color: text2),
+      border: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: BorderSide(color: border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: BorderSide(color: border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: BorderSide(color: teal, width: 1.4),
+      ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(0, 34),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, 34),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        foregroundColor: text2,
+        side: BorderSide(color: border),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        minimumSize: const Size(0, 32),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        foregroundColor: teal,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+      ),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: ButtonStyle(
+        foregroundColor: WidgetStatePropertyAll(text2),
+        iconSize: const WidgetStatePropertyAll(18),
+      ),
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: AppColors.panelFor(brightness),
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: border),
+      ),
+      textStyle: TextStyle(fontSize: 13, color: text),
+    ),
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        color: surface2,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: border),
+      ),
+      textStyle: TextStyle(fontSize: 12, color: text),
+    ),
+    dividerTheme: DividerThemeData(color: border, thickness: 1, space: 1),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: AppColors.surface3For(brightness),
+      contentTextStyle: TextStyle(fontSize: 13, color: text),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(color: teal),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? AppColors.tealDimFor(brightness)
+              : surface2,
+        ),
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? teal : text2,
+        ),
+        side: WidgetStatePropertyAll(BorderSide(color: border)),
+      ),
+    ),
+    checkboxTheme: CheckboxThemeData(
+      side: BorderSide(color: border, width: 1.4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+      fillColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected) ? teal : null,
+      ),
+    ),
+    listTileTheme: ListTileThemeData(iconColor: text2, textColor: text),
+    tabBarTheme: TabBarThemeData(
+      labelColor: teal,
+      unselectedLabelColor: text2,
+      indicatorColor: teal,
+      dividerColor: border,
+    ),
+  );
+}
 
 TextTheme _buildTextTheme(Brightness brightness) {
   const baseTheme = TextTheme(

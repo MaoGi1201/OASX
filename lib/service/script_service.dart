@@ -22,7 +22,6 @@ part 'script_service_auto.dart';
 part 'script_service_config.dart';
 
 class ScriptService extends GetxService {
-  // ignore: unused_field
   final _storage = GetStorage();
   final wsService = Get.find<WebSocketService>();
   final scriptModelMap = <String, ScriptModel>{}.obs;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:oasx/config/app_colors.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get/get.dart';
@@ -51,68 +52,123 @@ class ConfigActions {
     required ScriptService scriptService,
     required String oldName,
   }) async {
+    final navigatorContext = Get.context ?? Get.key.currentContext;
+    if (navigatorContext == null) {
+      return null;
+    }
     var newName = oldName;
     final formKey = GlobalKey<FormState>();
-    final result = await Get.defaultDialog<String>(
-      title: I18n.rename.tr,
-      textConfirm: I18n.confirm.tr,
-      textCancel: I18n.cancel.tr,
-      content: Form(
-        key: formKey,
-        autovalidateMode: AutovalidateMode.onUserInteraction,
-        child: TextFormField(
-          decoration: InputDecoration(labelText: I18n.newName.tr),
-          validator: (String? value) {
-            final input = value?.trim() ?? '';
-            return validateRenameName(
-              oldName: oldName,
-              newName: input,
-              scriptService: scriptService,
-            );
-          },
-          onChanged: (v) => newName = v.trim(),
-        ),
-      ),
-      onConfirm: () async {
-        if (!(formKey.currentState?.validate() ?? false)) {
-          return;
-        }
-        final renamed = await renameScript(
-          scriptService: scriptService,
-          oldName: oldName,
-          newName: newName,
+
+    Future<void> submit(BuildContext dialogContext) async {
+      if (!(formKey.currentState?.validate() ?? false)) {
+        return;
+      }
+      final renamed = await renameScript(
+        scriptService: scriptService,
+        oldName: oldName,
+        newName: newName,
+      );
+      if (!renamed) {
+        return;
+      }
+      if (dialogContext.mounted) {
+        Navigator.of(dialogContext).pop(newName);
+      }
+    }
+
+    return showDialog<String>(
+      context: navigatorContext,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(I18n.rename.tr),
+          content: SizedBox(
+            width: 320,
+            child: Form(
+              key: formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              child: TextFormField(
+                initialValue: oldName,
+                autofocus: true,
+                decoration: InputDecoration(labelText: I18n.newName.tr),
+                validator: (String? value) {
+                  final input = value?.trim() ?? '';
+                  return validateRenameName(
+                    oldName: oldName,
+                    newName: input,
+                    scriptService: scriptService,
+                  );
+                },
+                onChanged: (v) => newName = v.trim(),
+                onFieldSubmitted: (_) => submit(dialogContext),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(I18n.cancel.tr),
+            ),
+            FilledButton(
+              onPressed: () => submit(dialogContext),
+              child: Text(I18n.confirm.tr),
+            ),
+          ],
         );
-        if (!renamed) {
-          return;
-        }
-        Get.back(result: newName);
       },
-      onCancel: () {},
     );
-    return result;
   }
 
   static Future<void> showDeleteDialog({
     required ScriptService scriptService,
     required String name,
   }) async {
-    final canDelete = await scriptService.tryCloseScriptWithReason(name);
-    if (!canDelete) return;
+    final navigatorContext = Get.context ?? Get.key.currentContext;
+    if (navigatorContext == null) {
+      return;
+    }
 
-    await Get.defaultDialog(
-      title: I18n.delete.tr,
-      textConfirm: I18n.confirm.tr,
-      textCancel: I18n.cancel.tr,
-      middleText: '${I18n.deleteConfirm.tr} "$name"?',
-      onConfirm: () async {
-        Get.back();
-        final success = await scriptService.deleteConfig(name);
-        if (!success) {
-          showToast(I18n.error.tr, '');
-        }
+    // 先弹确认框：确认之前不要碰脚本，否则取消后配置会被关掉（状态点变色）。
+    final confirmed = await showDialog<bool>(
+      context: navigatorContext,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(I18n.delete.tr),
+          content: SizedBox(
+            width: 320,
+            child: Text(
+              '${I18n.deleteConfirm.tr} "$name"?',
+              style: const TextStyle(fontSize: 13, height: 1.6),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(I18n.cancel.tr),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(I18n.delete.tr),
+            ),
+          ],
+        );
       },
-      onCancel: () {},
     );
+    if (confirmed != true) {
+      return;
+    }
+
+    final canDelete = await scriptService.tryCloseScriptWithReason(name);
+    if (!canDelete) {
+      return;
+    }
+    final success = await scriptService.deleteConfig(name);
+    if (!success) {
+      showToast(I18n.error.tr, '');
+    }
   }
 
   static Future<void> exportScript({required String name}) async {

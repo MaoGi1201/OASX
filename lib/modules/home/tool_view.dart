@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:styled_widget/styled_widget.dart';
 
 import 'package:oasx/api/api_client.dart';
+import 'package:oasx/config/app_colors.dart';
 import 'package:oasx/translation/i18n_content.dart';
 
+/// Content of the "推送测试" dialog: three fields plus a send button.
+///
+/// Kept as plain content (no Card, no duplicated title) because the dialog
+/// itself provides the frame.
 class NotifyTest extends StatefulWidget {
   const NotifyTest({Key? key}) : super(key: key);
 
@@ -13,85 +17,89 @@ class NotifyTest extends StatefulWidget {
 }
 
 class NotifyTestState extends State<NotifyTest> {
-  String testConfig = 'provider:';
-  String testTitle = 'Title';
-  String testContent = 'Content';
+  late final TextEditingController _configController =
+      TextEditingController(text: 'provider:');
+  late final TextEditingController _titleController =
+      TextEditingController(text: 'Title');
+  late final TextEditingController _contentController =
+      TextEditingController(text: 'Content');
+
+  @override
+  void dispose() {
+    _configController.dispose();
+    _titleController.dispose();
+    _contentController.dispose();
+    super.dispose();
+  }
+
+  void _send() {
+    ApiClient().notifyTest(
+      _configController.text,
+      _titleController.text,
+      _contentController.text,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return <Widget>[
-      Text(I18n.notifyTest.tr,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleMedium),
-      _config(),
-      _title(),
-      _content(),
-      const SizedBox(
-        height: 20,
+    return SizedBox(
+      width: 360,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _field(
+            controller: _configController,
+            label: I18n.notifyTestConfig.tr,
+            helper: I18n.notifyTestHelp.tr,
+            minLines: 3,
+            maxLines: 6,
+          ),
+          const SizedBox(height: 14),
+          _field(
+            controller: _titleController,
+            label: I18n.notifyTestTitle.tr,
+            minLines: 1,
+            maxLines: 1,
+          ),
+          const SizedBox(height: 14),
+          _field(
+            controller: _contentController,
+            label: I18n.notifyTestContent.tr,
+            minLines: 2,
+            maxLines: 4,
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            height: 36,
+            child: FilledButton(
+              onPressed: _send,
+              child: Text(I18n.notifyTestSend.tr),
+            ),
+          ),
+        ],
       ),
-      _send(),
-    ]
-        .toColumn(crossAxisAlignment: CrossAxisAlignment.start)
-        .padding(all: 10)
-        .card(margin: const EdgeInsets.all(10))
-        .constrained(maxWidth: 300, width: 300);
+    );
   }
 
-  Widget _config() {
-    return TextFormField(
-        keyboardType: TextInputType.multiline,
-        textInputAction: TextInputAction.newline,
-        maxLines: null,
-        initialValue: testConfig,
-        decoration: InputDecoration(
-            labelText: I18n.notifyTestConfig.tr,
-            helperText: I18n.notifyTestHelp.tr),
-        onChanged: (value) {
-          setState(() {
-            testConfig = value;
-          });
-        }).constrained(width: 300);
-  }
-
-  Widget _title() {
-    return TextFormField(
-        keyboardType: TextInputType.multiline,
-        textInputAction: TextInputAction.newline,
-        maxLines: null,
-        initialValue: testTitle,
-        decoration: InputDecoration(
-          labelText: I18n.notifyTestTitle.tr,
-        ),
-        onChanged: (value) {
-          setState(() {
-            testTitle = value;
-          });
-        }).constrained(width: 300);
-  }
-
-  Widget _content() {
-    return TextFormField(
-        keyboardType: TextInputType.multiline,
-        textInputAction: TextInputAction.newline,
-        maxLines: null,
-        initialValue: testContent,
-        decoration: InputDecoration(
-          labelText: I18n.notifyTestContent.tr,
-        ),
-        onChanged: (value) {
-          setState(() {
-            testContent = value;
-          });
-        }).constrained(width: 300);
-  }
-
-  Widget _send() {
-    return MaterialButton(
-      color: Theme.of(context).canvasColor,
-      onPressed: () {
-        ApiClient().notifyTest(testConfig, testTitle, testContent);
-      },
-      child: Text(I18n.notifyTestSend.tr),
-    ).constrained(width: 300);
+  Widget _field({
+    required TextEditingController controller,
+    required String label,
+    String? helper,
+    required int minLines,
+    required int maxLines,
+  }) {
+    return TextField(
+      controller: controller,
+      minLines: minLines,
+      maxLines: maxLines,
+      style: TextStyle(fontSize: 13, height: 1.5, color: AppColors.text),
+      decoration: InputDecoration(
+        labelText: label,
+        helperText: helper,
+        helperMaxLines: 2,
+        alignLabelWithHint: maxLines > 1,
+      ),
+    );
   }
 }

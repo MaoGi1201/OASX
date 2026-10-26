@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:oasx/config/app_colors.dart';
 import 'package:get/get.dart';
 import 'package:oasx/modules/home/controllers/statistics_controller.dart';
 import 'package:oasx/modules/home/models/script_statistics_models.dart';
@@ -640,10 +641,15 @@ class _StatisticsPopupSelector<T> extends StatelessWidget {
                       resolvedOption.label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13, color: AppColors.text),
                     ),
                   ),
                   const SizedBox(width: 6),
-                  const Icon(Icons.arrow_drop_down_rounded, size: 20),
+                  Icon(
+                    Icons.arrow_drop_down_rounded,
+                    size: 20,
+                    color: AppColors.text3,
+                  ),
                 ],
               ),
             ),
@@ -666,8 +672,13 @@ class _StatisticsPopupSelector<T> extends StatelessWidget {
       context: context,
       position: position,
       initialValue: resolvedOption.value,
+      // 显式指定配色与字号：showMenu 自己不会读 AppColors，
+      // 否则在深/浅主题下会和面板其余控件不一致。
+      color: AppColors.panel,
+      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(_kStatisticsDropdownBorderRadius),
+        side: BorderSide(color: AppColors.border),
       ),
       constraints: const BoxConstraints(
         maxHeight:

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:oasx/config/app_colors.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 
@@ -242,8 +243,12 @@ class _SettingsViewState extends State<SettingsView> {
     return SizedBox(
       width: _navWidth,
       child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 0,
+        color: AppColors.card,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: AppColors.border),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(8),
           child: Column(
@@ -264,20 +269,21 @@ class _SettingsViewState extends State<SettingsView> {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(9),
                       color: isSelected
-                          ? Theme.of(context)
-                              .colorScheme
-                              .secondaryContainer
-                              .withValues(alpha: 0.38)
+                          ? AppColors.tealDim
                           : Colors.transparent,
                     ),
                     child: Text(
                       _sections[index].navTitleBuilder(),
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight:
-                                isSelected ? FontWeight.w600 : FontWeight.w400,
-                          ),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w400,
+                        color: isSelected
+                            ? AppColors.teal
+                            : AppColors.text2,
+                      ),
                     ),
                   ),
                 ),

@@ -58,9 +58,24 @@ class OasSettingsCard extends StatelessWidget {
 }
 
 void notifyTest() {
-  Get.defaultDialog(
-    title: I18n.notifyTest.tr,
-    content: const NotifyTest(),
+  final navigatorContext = Get.context ?? Get.key.currentContext;
+  if (navigatorContext == null) {
+    return;
+  }
+  showDialog<void>(
+    context: navigatorContext,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: Text(I18n.notifyTest.tr),
+        content: const NotifyTest(),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(I18n.cancel.tr),
+          ),
+        ],
+      );
+    },
   );
 }
 

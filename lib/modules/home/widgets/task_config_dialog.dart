@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:oasx/config/app_colors.dart';
 import 'package:get/get.dart';
 import 'package:oasx/modules/args/index.dart';
 import 'package:oasx/modules/home/controllers/dashboard_controller.dart';
@@ -101,11 +102,11 @@ class _TaskConfigDialogState extends State<_TaskConfigDialog> {
     return Theme(
       data: _dialogTheme(),
       child: Dialog(
-        backgroundColor: _dialogSurface,
+        backgroundColor: AppColors.panel,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: _dialogBorder),
+          side: BorderSide(color: AppColors.border),
         ),
         insetPadding: const EdgeInsets.all(24),
         child: SizedBox(
@@ -125,7 +126,7 @@ class _TaskConfigDialogState extends State<_TaskConfigDialog> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: _dialogText,
+                          color: AppColors.text,
                         ),
                       ),
                     ),
@@ -138,12 +139,12 @@ class _TaskConfigDialogState extends State<_TaskConfigDialog> {
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: _dialogTeal,
+                                color: AppColors.teal,
                               ),
                             )
                           : Icon(
                               Icons.refresh_rounded,
-                              color: _dialogText2,
+                              color: AppColors.text2,
                             ),
                     ),
                     IconButton(
@@ -151,17 +152,17 @@ class _TaskConfigDialogState extends State<_TaskConfigDialog> {
                       onPressed: () => Navigator.of(context).pop(),
                       icon: Icon(
                         Icons.close_rounded,
-                        color: _dialogText2,
+                        color: AppColors.text2,
                       ),
                     ),
                   ],
                 ),
               ),
-              Divider(height: 1, color: _dialogBorder),
+              Divider(height: 1, color: AppColors.border),
               Expanded(
                 child: _loading
                     ? Center(
-                        child: CircularProgressIndicator(color: _dialogTeal),
+                        child: CircularProgressIndicator(color: AppColors.teal),
                       )
                     : _error != null
                         ? Center(
@@ -170,7 +171,7 @@ class _TaskConfigDialogState extends State<_TaskConfigDialog> {
                               child: Text(
                                 '加载失败：$_error',
                                 textAlign: TextAlign.center,
-                                style: TextStyle(color: _dialogText2),
+                                style: TextStyle(color: AppColors.text2),
                               ),
                             ),
                           )
@@ -198,74 +199,79 @@ class _TaskConfigDialogState extends State<_TaskConfigDialog> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Dialog palette: mirrors the dashboard's light/dark colors and teal accent.
-// ---------------------------------------------------------------------------
-bool get _dialogDark => Get.isDarkMode;
-Color get _dialogSurface =>
-    _dialogDark ? const Color(0xFF12151A) : Colors.white;
-Color get _dialogCard =>
-    _dialogDark ? const Color(0xFF1A1F26) : const Color(0xFFF7F8FA);
-Color get _dialogBorder =>
-    _dialogDark ? const Color(0xFF232932) : const Color(0xFFE1E5EB);
-Color get _dialogText =>
-    _dialogDark ? const Color(0xFFE8EAED) : const Color(0xFF1B1F24);
-Color get _dialogText2 =>
-    _dialogDark ? const Color(0xFF9AA3AF) : const Color(0xFF5A6472);
-Color get _dialogTeal =>
-    _dialogDark ? const Color(0xFF2FD6A5) : const Color(0xFF0E9E7A);
-Color get _dialogTealDim =>
-    _dialogDark ? const Color(0xFF123B34) : const Color(0xFFDFF5EE);
-
 ThemeData _dialogTheme() {
-  final brightness = _dialogDark ? Brightness.dark : Brightness.light;
+  final brightness = AppColors.isDark ? Brightness.dark : Brightness.light;
   final scheme = ColorScheme.fromSeed(
-    seedColor: _dialogTeal,
+    seedColor: AppColors.teal,
     brightness: brightness,
   ).copyWith(
-    primary: _dialogTeal,
-    surface: _dialogSurface,
-    onSurface: _dialogText,
-    outlineVariant: _dialogBorder,
-    surfaceContainerHighest: _dialogCard,
-    secondaryContainer: _dialogTealDim,
+    primary: AppColors.teal,
+    surface: AppColors.panel,
+    onSurface: AppColors.text,
+    outlineVariant: AppColors.border,
+    surfaceContainerHighest: AppColors.card,
+    secondaryContainer: AppColors.tealDim,
   );
   return ThemeData(
     brightness: brightness,
     colorScheme: scheme,
-    scaffoldBackgroundColor: _dialogSurface,
-    cardColor: _dialogCard,
-    dividerColor: _dialogBorder,
-    iconTheme: IconThemeData(color: _dialogText2),
+    scaffoldBackgroundColor: AppColors.panel,
+    // DropdownButton 的浮层菜单用的是 canvasColor，不设会退回默认浅色。
+    canvasColor: AppColors.panel,
+    cardColor: AppColors.card,
+    dividerColor: AppColors.border,
+    iconTheme: IconThemeData(color: AppColors.text2),
+    popupMenuTheme: PopupMenuThemeData(
+      color: AppColors.panel,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: AppColors.border),
+      ),
+      textStyle: TextStyle(fontSize: 13, color: AppColors.text),
+    ),
+    menuTheme: MenuThemeData(
+      style: MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(AppColors.panel),
+        surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: AppColors.border),
+          ),
+        ),
+      ),
+    ),
     dialogTheme: DialogThemeData(
-      backgroundColor: _dialogSurface,
+      backgroundColor: AppColors.panel,
       surfaceTintColor: Colors.transparent,
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: _dialogCard,
-      hintStyle: TextStyle(color: _dialogText2, fontSize: 12.5),
+      fillColor: AppColors.card,
+      hintStyle: TextStyle(color: AppColors.text2, fontSize: 12.5),
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: _dialogBorder),
+        borderSide: BorderSide(color: AppColors.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: _dialogBorder),
+        borderSide: BorderSide(color: AppColors.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: _dialogTeal),
+        borderSide: BorderSide(color: AppColors.teal),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(foregroundColor: _dialogText2),
+      style: TextButton.styleFrom(foregroundColor: AppColors.text2),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: _dialogTeal,
-        foregroundColor: _dialogDark ? const Color(0xFF04140F) : Colors.white,
+        backgroundColor: AppColors.teal,
+        foregroundColor: AppColors.isDark ? const Color(0xFF04140F) : Colors.white,
       ),
     ),
   );
