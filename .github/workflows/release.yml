@@ -184,6 +184,26 @@ jobs:
         shell: pwsh
         run: flutter pub get
 
+      - name: Verify version matches tag
+        shell: pwsh
+        env:
+          TAG_NAME: ${{ needs.create_release.outputs.tag_name }}
+          BUILD_NAME: ${{ needs.create_release.outputs.build_name }}
+        run: |
+          $versionLine = Select-String -Path 'pubspec.yaml' -Pattern '^version:\s*(.+)$' | Select-Object -First 1
+          if (-not $versionLine) {
+            throw 'pubspec.yaml 里找不到 version 字段'
+          }
+          $pubspecVersion = $versionLine.Matches[0].Groups[1].Value.Trim().Trim('"').Trim("'")
+          $pubspecCore = ($pubspecVersion -split '\+')[0].TrimStart('v')
+
+          Write-Host "tag:     $env:TAG_NAME"
+          Write-Host "pubspec: $pubspecVersion"
+
+          if ($pubspecCore -ne $env:BUILD_NAME) {
+            throw "pubspec 版本 $pubspecCore 与 tag $($env:TAG_NAME) 不一致，请先执行 python ./script/sync_version.py --newversion $env:BUILD_NAME 并提交后再打 tag"
+          }
+
       - name: Build Windows app
         shell: pwsh
         run: |
