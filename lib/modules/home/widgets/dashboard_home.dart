@@ -21,185 +21,67 @@ import 'package:oasx/utils/logger.dart';
 // ---------------------------------------------------------------------------
 // Palette: light (day) and dark (night) variants selected by the app theme.
 // ---------------------------------------------------------------------------
-/// Opens the connector dialog: pick other configs to mirror this one's
-/// start/stop and task actions.
+/// 从配置卡片的链条按钮打开「全部配置」面板：只做一件事——默认勾上当前配置。
+///
+/// 关闭时若只勾了一个配置，等同于「不连接」，会自动断开（见 [showAllConfigsDialog]）。
 Future<void> showConnectorDialog(
   BuildContext context, {
   required HomeDashboardController controller,
+  required ScriptService scriptService,
   required String sourceScript,
 }) {
-  // 首次打开时默认把当前配置勾上（仍可取消），方便直接再勾别的配置。
   if (controller.validLinkedScripts.isEmpty) {
     if (!controller.isLinkModeEnabled.value) {
       controller.toggleLinkMode();
     }
     controller.setScriptLinked(sourceScript, true);
   }
-  return showDialog<void>(
-    context: context,
-    // 点空白处不关闭：勾选过程很容易误触外部，关掉就得重新勾一遍。
-    // 只有「取消 / 完成」按钮会关闭弹窗。
-    barrierDismissible: false,
-    builder: (dialogContext) => _ConnectorDialog(
-      controller: controller,
-      sourceScript: sourceScript,
-    ),
+
+  return showAllConfigsDialog(
+    context,
+    controller: controller,
+    scriptService: scriptService,
+    startInLinkMode: true,
   );
 }
 
-class _ConnectorDialog extends StatelessWidget {
-  const _ConnectorDialog({
-    required this.controller,
-    required this.sourceScript,
-  });
-
-  final HomeDashboardController controller;
-  final String sourceScript;
-
-  void _toggle(String name, bool selected) {
-    if (selected && !controller.isLinkModeEnabled.value) {
-      controller.toggleLinkMode();
-    }
-    // 取消勾选只是把这一项移出列表：不关闭连接模式，也不关闭弹窗。
-    controller.setScriptLinked(name, selected);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      final candidates = controller.linkCandidatesFor(sourceScript);
-      final linked = controller.linkedScriptList.toSet();
-      // 当前配置永远排在第一行、默认勾选且不可取消。
-      final allNames = <String>[sourceScript, ...candidates];
-      return AlertDialog(
-        title: const Text('连接器'),
-        content: SizedBox(
-          width: 360,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '勾选的配置会一起启停、一起执行任务。',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  height: 1.5,
-                  color: AppColors.text2,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 320),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: allNames.length,
-                  itemBuilder: (context, index) {
-                    final name = allNames[index];
-                    final selected = linked.contains(name);
-                    return InkWell(
-                      borderRadius: BorderRadius.circular(8),
-                      onTap: () => _toggle(name, !selected),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Row(
-                          children: [
-                            Checkbox(
-                              value: selected,
-                              onChanged: (value) =>
-                                  _toggle(name, value ?? false),
-                            ),
-                            Expanded(
-                              child: Text(
-                                name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: selected
-                                      ? AppColors.teal
-                                      : AppColors.text,
-                                  fontWeight: selected
-                                      ? FontWeight.w600
-                                      : FontWeight.w400,
-                                ),
-                              ),
-                            ),
-
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              if (candidates.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        for (final name in allNames) {
-                          _toggle(name, true);
-                        }
-                      },
-                      child: const Text('全选'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        for (final name in allNames) {
-                          _toggle(name, false);
-                        }
-                      },
-                      child: const Text('清空'),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              // 只勾了自己（或什么都没勾）等于没连接：直接关掉连接模式，
-              // 避免顶栏留下"已连接"的假状态。
-              if (controller.validLinkedScripts.length < 2 &&
-                  controller.isLinkModeEnabled.value) {
-                controller.toggleLinkMode();
-              }
-              Navigator.of(context).pop();
-            },
-            child: const Text('完成'),
-          ),
-        ],
-      );
-    });
-  }
-}
-
-/// 打开「全部配置」面板：网格一览所有配置，带搜索与状态点，点一下即切换。
+/// 打开「全部配置」面板：网格一览所有配置，带搜索与状态点。
+///
+/// [startInLinkMode] 为 true 时直接进入连接模式（显示勾选框）。
+/// 关闭时统一收尾：勾选的配置不足两个就视为「不连接」，自动断开。
 Future<void> showAllConfigsDialog(
   BuildContext context, {
   required HomeDashboardController controller,
   required ScriptService scriptService,
-}) {
-  return showDialog<void>(
+  bool startInLinkMode = false,
+}) async {
+  await showDialog<void>(
     context: context,
     builder: (_) => _AllConfigsDialog(
       controller: controller,
       scriptService: scriptService,
+      startInLinkMode: startInLinkMode,
     ),
   );
+
+  if (controller.validLinkedScripts.length < 2 &&
+      controller.isLinkModeEnabled.value) {
+    controller.toggleLinkMode();
+  }
 }
 
 class _AllConfigsDialog extends StatefulWidget {
   const _AllConfigsDialog({
     required this.controller,
     required this.scriptService,
+    this.startInLinkMode = false,
   });
 
   final HomeDashboardController controller;
   final ScriptService scriptService;
+
+  /// 打开时是否直接进入连接模式（配置卡片的链条按钮走这条路）。
+  final bool startInLinkMode;
 
   @override
   State<_AllConfigsDialog> createState() => _AllConfigsDialogState();
@@ -208,6 +90,17 @@ class _AllConfigsDialog extends StatefulWidget {
 class _AllConfigsDialogState extends State<_AllConfigsDialog> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
+  /// 已有生效的连接组时，进来就直接展示连接状态（勾选框可见）。
+  late bool _linkMode = widget.startInLinkMode ||
+      widget.controller.validLinkedScripts.length >= 2;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_linkMode) {
+      _ensureLinkEnabled();
+    }
+  }
 
   @override
   void dispose() {
@@ -215,11 +108,40 @@ class _AllConfigsDialogState extends State<_AllConfigsDialog> {
     super.dispose();
   }
 
+  /// `setScriptLinked` 在连接模式关闭时会直接 return，改列表前必须先开启。
+  void _ensureLinkEnabled() {
+    if (!widget.controller.isLinkModeEnabled.value) {
+      widget.controller.toggleLinkMode();
+    }
+  }
+
+  /// 点链条按钮：进入连接模式 / 断开全部连接。
+  void _toggleLinkMode() {
+    if (_linkMode) {
+      // 断开：关闭连接模式会一并清空勾选，勾选框随之隐藏。
+      if (widget.controller.isLinkModeEnabled.value) {
+        widget.controller.toggleLinkMode();
+      }
+      setState(() => _linkMode = false);
+      return;
+    }
+    _ensureLinkEnabled();
+    setState(() => _linkMode = true);
+  }
+
+  void _toggleLinked(String name, bool selected) {
+    if (selected) {
+      _ensureLinkEnabled();
+    }
+    widget.controller.setScriptLinked(name, selected);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       final names = widget.scriptService.scriptOrderList;
       final activeName = widget.controller.activeScriptName.value.trim();
+      final linked = widget.controller.linkedScriptList.toSet();
       final keyword = _query.trim().toLowerCase();
       final filtered = keyword.isEmpty
           ? names
@@ -235,8 +157,8 @@ class _AllConfigsDialogState extends State<_AllConfigsDialog> {
 
       // 窗口较小时按可用空间收缩，避免弹窗溢出。
       final size = MediaQuery.sizeOf(context);
-      final panelWidth = (size.width - 96).clamp(240.0, 520.0);
-      final panelHeight = (size.height - 240).clamp(200.0, 360.0);
+      final panelWidth = (size.width - 96).clamp(260.0, 520.0);
+      final panelHeight = (size.height - 240).clamp(200.0, 380.0);
 
       return AlertDialog(
         title: Row(
@@ -247,12 +169,30 @@ class _AllConfigsDialogState extends State<_AllConfigsDialog> {
               '共 ${names.length} 个 · 运行中 $runningCount',
               style: TextStyle(fontSize: 12, color: AppColors.text3),
             ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: _toggleLinkMode,
+              icon: Icon(
+                _linkMode ? Icons.link_off_rounded : Icons.link_rounded,
+                size: 15,
+                color: _linkMode ? AppColors.yellow : AppColors.teal,
+              ),
+              label: Text(
+                _linkMode ? '断开连接' : '连接',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  color: _linkMode ? AppColors.yellow : AppColors.teal,
+                ),
+              ),
+            ),
           ],
         ),
         content: SizedBox(
           width: panelWidth,
           height: panelHeight,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextField(
                 controller: _searchController,
@@ -265,7 +205,18 @@ class _AllConfigsDialogState extends State<_AllConfigsDialog> {
                 ),
                 onChanged: (value) => setState(() => _query = value),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
+              Text(
+                _linkMode
+                    ? '勾选即连接：勾上的配置会一起启停、一起执行任务；点「断开连接」可解除全部。'
+                    : '点右上角「连接」后，每个配置前会出现勾选框。',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  height: 1.5,
+                  color: AppColors.text3,
+                ),
+              ),
+              const SizedBox(height: 10),
               Expanded(
                 child: filtered.isEmpty
                     ? Center(
@@ -286,30 +237,39 @@ class _AllConfigsDialogState extends State<_AllConfigsDialog> {
                         itemCount: filtered.length,
                         itemBuilder: (context, index) {
                           final name = filtered[index];
+                          final isLinked = linked.contains(name);
                           return Obx(
                             () => _AllConfigsTile(
                               name: name,
+                              linkMode: _linkMode,
                               active: name == activeName,
+                              selected: isLinked,
                               state: _stateOf(name),
-                              linked: widget.controller.hasActiveLinkFor(name),
-                              onTap: () {
+                              linked: isLinked,
+                              onSwitch: () {
                                 widget.controller.setActiveScript(name);
                                 Navigator.of(context).pop();
                               },
+                              onToggleLink: () =>
+                                  _toggleLinked(name, !isLinked),
                             ),
                           );
                         },
                       ),
               ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('关闭'),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('关闭'),
-          ),
-        ],
       );
     });
   }
@@ -320,21 +280,34 @@ class _AllConfigsDialogState extends State<_AllConfigsDialog> {
   }
 }
 
-/// 网格里的单个配置项：状态点 + 名称（+ 连接标记）。
+/// 网格里的单个配置项。
+///
+/// - 浏览模式：整格点击 = 切换配置；右侧小勾表示已连接
+/// - 连接模式：左侧勾选框 = 加入/移出连接，右侧名字 = 切换配置
 class _AllConfigsTile extends StatelessWidget {
   const _AllConfigsTile({
     required this.name,
+    required this.linkMode,
     required this.active,
+    required this.selected,
     required this.state,
     required this.linked,
-    required this.onTap,
+    required this.onSwitch,
+    required this.onToggleLink,
   });
 
   final String name;
+  final bool linkMode;
   final bool active;
+  final bool selected;
   final ScriptState state;
   final bool linked;
-  final VoidCallback onTap;
+
+  /// 切换到这个配置（会关闭面板）。
+  final VoidCallback onSwitch;
+
+  /// 加入 / 移出连接组。
+  final VoidCallback onToggleLink;
 
   /// 运行中=绿，卡死/异常=黄，更新中=蓝，未启动=灰（与标签条一致）。
   Color get _accent {
@@ -348,44 +321,105 @@ class _AllConfigsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    final highlight = linkMode ? selected : active;
+    final background = BoxDecoration(
+      color: highlight ? AppColors.tealDim : AppColors.surface2,
       borderRadius: BorderRadius.circular(8),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: active ? AppColors.tealDim : AppColors.surface2,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: active
-                ? AppColors.teal.withValues(alpha: 0.55)
-                : AppColors.border,
+      border: Border.all(
+        color: highlight
+            ? AppColors.teal.withValues(alpha: 0.55)
+            : AppColors.border,
+      ),
+    );
+
+    final nameText = Text(
+      name,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: 12.5,
+        color: highlight ? AppColors.teal : AppColors.text,
+        fontWeight: highlight ? FontWeight.w600 : FontWeight.w400,
+      ),
+    );
+
+    if (!linkMode) {
+      return InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onSwitch,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: background,
+          child: Row(
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration:
+                    BoxDecoration(color: _accent, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: nameText),
+              if (linked)
+                Icon(Icons.link_rounded, size: 12, color: AppColors.teal),
+            ],
           ),
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 7,
-              height: 7,
-              decoration: BoxDecoration(color: _accent, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: active ? AppColors.teal : AppColors.text,
-                  fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                ),
+      );
+    }
+
+    // 连接模式：勾选框 + 名字 = 打勾/取消打勾；名字后面的空白 = 切换到该配置。
+    return Container(
+      decoration: background,
+      child: Row(
+        children: [
+          Tooltip(
+            message: selected ? '取消连接' : '加入连接',
+            waitDuration: const Duration(milliseconds: 350),
+            child: InkWell(
+              borderRadius: const BorderRadius.horizontal(
+                left: Radius.circular(8),
+              ),
+              onTap: onToggleLink,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 32,
+                    height: 42,
+                    child: Center(
+                      child: Icon(
+                        selected
+                            ? Icons.check_box_rounded
+                            : Icons.check_box_outline_blank_rounded,
+                        size: 16,
+                        color: selected ? AppColors.teal : AppColors.text3,
+                      ),
+                    ),
+                  ),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 88),
+                    child: nameText,
+                  ),
+                  const SizedBox(width: 4),
+                ],
               ),
             ),
-            if (linked)
-              Icon(Icons.link_rounded, size: 12, color: AppColors.teal),
-          ],
-        ),
+          ),
+          Expanded(
+            child: Tooltip(
+              message: '切换到该配置',
+              waitDuration: const Duration(milliseconds: 350),
+              child: InkWell(
+                borderRadius: const BorderRadius.horizontal(
+                  right: Radius.circular(8),
+                ),
+                onTap: onSwitch,
+                child: const SizedBox(height: 42),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2346,6 +2380,7 @@ class _OverviewColumnState extends State<_OverviewColumn> {
                 : () => showConnectorDialog(
                       context,
                       controller: controller,
+                      scriptService: widget.scriptService,
                       sourceScript: script.name,
                     ),
             canRename: !isRunning,
