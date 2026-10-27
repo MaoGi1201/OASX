@@ -129,6 +129,18 @@ class _AllConfigsDialogState extends State<_AllConfigsDialog> {
     setState(() => _linkMode = true);
   }
 
+  /// 启停某个配置：走和顶栏标签相同的级联逻辑（连接生效时一起启停）。
+  Future<void> _togglePower(String name) async {
+    final model = widget.scriptService.findScriptModel(name);
+    if (model == null) {
+      return;
+    }
+    await widget.controller.applyLinkedPowerToggle(
+      sourceScript: name,
+      enable: model.state.value != ScriptState.running,
+    );
+  }
+
   void _toggleLinked(String name, bool selected) {
     if (selected) {
       _ensureLinkEnabled();
@@ -252,6 +264,7 @@ class _AllConfigsDialogState extends State<_AllConfigsDialog> {
                               },
                               onToggleLink: () =>
                                   _toggleLinked(name, !isLinked),
+                              onTogglePower: () => _togglePower(name),
                             ),
                           );
                         },
@@ -294,6 +307,7 @@ class _AllConfigsTile extends StatelessWidget {
     required this.linked,
     required this.onSwitch,
     required this.onToggleLink,
+    required this.onTogglePower,
   });
 
   final String name;
@@ -308,6 +322,9 @@ class _AllConfigsTile extends StatelessWidget {
 
   /// 加入 / 移出连接组。
   final VoidCallback onToggleLink;
+
+  /// 启动 / 停止这个配置。
+  final VoidCallback onTogglePower;
 
   /// 运行中=绿，卡死/异常=黄，更新中=蓝，未启动=灰（与标签条一致）。
   Color get _accent {
@@ -329,6 +346,41 @@ class _AllConfigsTile extends StatelessWidget {
         color: highlight
             ? AppColors.teal.withValues(alpha: 0.55)
             : AppColors.border,
+      ),
+    );
+
+    final running = state == ScriptState.running;
+    final warning = state == ScriptState.warning;
+    // 和顶栏配置标签上的启停按钮保持同一套样式与图标。
+    final powerButton = Tooltip(
+      message: running
+          ? '停止该配置'
+          : (warning ? '配置已卡死，点击重新启动' : '启动该配置'),
+      waitDuration: const Duration(milliseconds: 350),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTogglePower,
+        child: Container(
+          width: 26,
+          height: 26,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: running || warning
+                ? _accent.withValues(alpha: 0.14)
+                : AppColors.surface3,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: running || warning
+                  ? _accent.withValues(alpha: 0.6)
+                  : AppColors.border,
+            ),
+          ),
+          child: Icon(
+            Icons.power_settings_new_rounded,
+            size: 14,
+            color: running || warning ? _accent : AppColors.text3,
+          ),
+        ),
       ),
     );
 
@@ -360,8 +412,11 @@ class _AllConfigsTile extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Expanded(child: nameText),
-              if (linked)
+              if (linked) ...[
                 Icon(Icons.link_rounded, size: 12, color: AppColors.teal),
+                const SizedBox(width: 6),
+              ],
+              powerButton,
             ],
           ),
         ),
@@ -411,13 +466,14 @@ class _AllConfigsTile extends StatelessWidget {
               message: '切换到该配置',
               waitDuration: const Duration(milliseconds: 350),
               child: InkWell(
-                borderRadius: const BorderRadius.horizontal(
-                  right: Radius.circular(8),
-                ),
                 onTap: onSwitch,
                 child: const SizedBox(height: 42),
               ),
             ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: powerButton,
           ),
         ],
       ),
