@@ -462,8 +462,8 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
       taskName: normalizedTask,
       action: (target, resolvedTask) {
         return ApiClient().syncScriptTaskNextRun(
-          scriptName,
-          taskName,
+          target,
+          resolvedTask,
           targetDt,
         );
       },

@@ -359,7 +359,7 @@ class _AllConfigsTile extends StatelessWidget {
       waitDuration: const Duration(milliseconds: 350),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
-        onTap: onTogglePower,
+        onTap: _dismissingTooltipTap(onTogglePower),
         child: Container(
           width: 26,
           height: 26,
@@ -426,56 +426,69 @@ class _AllConfigsTile extends StatelessWidget {
     // 连接模式：勾选框 + 名字 = 打勾/取消打勾；名字后面的空白 = 切换到该配置。
     return Container(
       decoration: background,
-      child: Row(
-        children: [
-          Tooltip(
-            message: selected ? '取消连接' : '加入连接',
-            waitDuration: const Duration(milliseconds: 350),
-            child: InkWell(
-              borderRadius: const BorderRadius.horizontal(
-                left: Radius.circular(8),
-              ),
-              onTap: onToggleLink,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 32,
-                    height: 42,
-                    child: Center(
-                      child: Icon(
-                        selected
-                            ? Icons.check_box_rounded
-                            : Icons.check_box_outline_blank_rounded,
-                        size: 16,
-                        color: selected ? AppColors.teal : AppColors.text3,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // 面板最窄时每个格子只有 ~126px，名字区必须按实际宽度让位，
+          // 否则勾选框 + 名字 + 电源键直接把 Row 撑爆。
+          const fixedWidth = 32 + 4 + 26 + 4;
+          const minSwitchWidth = 18.0;
+          final nameMaxWidth = (constraints.maxWidth -
+                  fixedWidth -
+                  minSwitchWidth)
+              .clamp(24.0, 88.0)
+              .toDouble();
+          return Row(
+            children: [
+              Tooltip(
+                message: selected ? '取消连接' : '加入连接',
+                waitDuration: const Duration(milliseconds: 350),
+                child: InkWell(
+                  borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(8),
+                  ),
+                  onTap: _dismissingTooltipTap(onToggleLink),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 32,
+                        height: 42,
+                        child: Center(
+                          child: Icon(
+                            selected
+                                ? Icons.check_box_rounded
+                                : Icons.check_box_outline_blank_rounded,
+                            size: 16,
+                            color: selected ? AppColors.teal : AppColors.text3,
+                          ),
+                        ),
                       ),
-                    ),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: nameMaxWidth),
+                        child: nameText,
+                      ),
+                      const SizedBox(width: 4),
+                    ],
                   ),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 88),
-                    child: nameText,
+                ),
+              ),
+              Expanded(
+                child: Tooltip(
+                  message: '切换到该配置',
+                  waitDuration: const Duration(milliseconds: 350),
+                  child: InkWell(
+                    onTap: _dismissingTooltipTap(onSwitch),
+                    child: const SizedBox(height: 42),
                   ),
-                  const SizedBox(width: 4),
-                ],
+                ),
               ),
-            ),
-          ),
-          Expanded(
-            child: Tooltip(
-              message: '切换到该配置',
-              waitDuration: const Duration(milliseconds: 350),
-              child: InkWell(
-                onTap: onSwitch,
-                child: const SizedBox(height: 42),
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: powerButton,
               ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: powerButton,
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -531,6 +544,9 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   @override
   void dispose() {
+    // 窄屏最后一页是统计：离开仪表盘时把可见性关掉，
+    // 否则统计 controller 会在后台一直轮询（宽屏由 _RightColumn.dispose 负责）。
+    _controller.setStatsPanelVisible(false);
     _scriptWorker?.dispose();
     _clockTimer?.cancel();
     super.dispose();
@@ -899,7 +915,11 @@ class _HeaderStatusChip extends StatelessWidget {
           message: '点击重试连接',
           child: InkWell(
             borderRadius: BorderRadius.circular(8),
-            onTap: checking ? null : () => controller.retryStartupConnection(),
+            onTap: checking
+                ? null
+                : _dismissingTooltipTap(
+                    () => controller.retryStartupConnection(),
+                  ),
             child: Container(
               height: 26,
               padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -1104,7 +1124,7 @@ class _AccountTab extends StatelessWidget {
                 message: _powerTip,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(8),
-                  onTap: onTogglePower,
+                  onTap: _dismissingTooltipTap(onTogglePower),
                   child: Container(
                     width: 26,
                     height: 26,
@@ -1300,6 +1320,16 @@ class _TasksColumnState extends State<_TasksColumn> {
     });
   }
 
+  /// 工具栏刷新：重新拉一次 schedule，WS 推送延迟时也能手动同步任务列表。
+  void _refreshSchedule() {
+    final script = widget.script;
+    if (script == null) {
+      return;
+    }
+    Get.find<ScriptService>().wsService.send(script.name, 'get_schedule');
+    showToast('已刷新', '任务列表');
+  }
+
   /// Cancels one task in the current config's schedule.
   /// The task that is executing right now is protected: removing it would
   /// make the row vanish while the script keeps running it.
@@ -1355,6 +1385,7 @@ class _TasksColumnState extends State<_TasksColumn> {
                   _PanelToolbar(
                     label: '任务',
                     countText: '共 ${entries.length} 项',
+                    onRefresh: script == null ? null : _refreshSchedule,
                   ),
                   Expanded(
                     child: entries.isEmpty
@@ -1388,20 +1419,26 @@ class _TasksColumnState extends State<_TasksColumn> {
                                             taskName: taskName,
                                             runNow: true,
                                           );
-                                          if (ok) {
-                                            setState(() {
-                                              // 立即执行会把任务挪到今天并自动切到
-                                              // 「今天」页，标记也要写在今天上。
-                                              _appliedActions[_appliedKey(
-                                                taskName,
-                                                dayIndex: 0,
-                                              )] = _QuickAction.run;
-                                            });
+                                          if (!mounted) return;
+                                          if (!ok) {
                                             showToast(
-                                              '立即执行',
-                                              taskName.tr,
+                                              '操作失败',
+                                              '$taskName 未能立即执行',
                                             );
+                                            return;
                                           }
+                                          setState(() {
+                                            // 立即执行会把任务挪到今天并自动切到
+                                            // 「今天」页，标记也要写在今天上。
+                                            _appliedActions[_appliedKey(
+                                              taskName,
+                                              dayIndex: 0,
+                                            )] = _QuickAction.run;
+                                          });
+                                          showToast(
+                                            '立即执行',
+                                            taskName.tr,
+                                          );
                                           if (widget.selectedDayIndex != 0) {
                                             widget.onSelectDay(0);
                                           }
@@ -1416,17 +1453,23 @@ class _TasksColumnState extends State<_TasksColumn> {
                                             taskName: taskName,
                                             runNow: false,
                                           );
-                                          if (ok) {
-                                            setState(() {
-                                              _appliedActions[
-                                                  _appliedKey(taskName)] =
-                                                  _QuickAction.wait;
-                                            });
+                                          if (!mounted) return;
+                                          if (!ok) {
                                             showToast(
-                                              '已延后',
-                                              taskName.tr,
+                                              '操作失败',
+                                              '$taskName 未能延后',
                                             );
+                                            return;
                                           }
+                                          setState(() {
+                                            _appliedActions[
+                                                    _appliedKey(taskName)] =
+                                                _QuickAction.wait;
+                                          });
+                                          showToast(
+                                            '已延后',
+                                            taskName.tr,
+                                          );
                                         },
                                   onEdit: script == null
                                       ? null
@@ -1611,6 +1654,7 @@ class _DashboardTaskCatalog extends StatefulWidget {
     required this.enabledTaskNames,
     required this.scriptRunning,
     required this.runningTaskName,
+    this.scriptName = '',
     this.onToggleEnabled,
     this.onQuickRun,
     this.onQuickWait,
@@ -1624,9 +1668,12 @@ class _DashboardTaskCatalog extends StatefulWidget {
   /// 配置是否在运行；停止后要清掉「立即执行 / 已延后」的标记。
   final bool scriptRunning;
   final String runningTaskName;
+
+  /// 当前配置名；切换配置时「立即执行 / 已延后」标记属于上一个配置，必须清掉。
+  final String scriptName;
   final Future<void> Function(String task, bool enable)? onToggleEnabled;
-  final Future<void> Function(String task)? onQuickRun;
-  final Future<void> Function(String task)? onQuickWait;
+  final Future<bool> Function(String task)? onQuickRun;
+  final Future<bool> Function(String task)? onQuickWait;
   final Future<void> Function(String task)? onEdit;
 
   @override
@@ -1640,8 +1687,9 @@ class _DashboardTaskCatalogState extends State<_DashboardTaskCatalog> {
   @override
   void didUpdateWidget(covariant _DashboardTaskCatalog oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 配置停下后，之前的「立即执行 / 已延后」高亮就失效了。
-    if (oldWidget.scriptRunning && !widget.scriptRunning) {
+    // 配置停下或换了一个配置后，之前的「立即执行 / 已延后」高亮都失效了。
+    if ((oldWidget.scriptRunning && !widget.scriptRunning) ||
+        oldWidget.scriptName != widget.scriptName) {
       _applied.clear();
     }
   }
@@ -1763,18 +1811,29 @@ class _DashboardTaskCatalogState extends State<_DashboardTaskCatalog> {
       onRun: !schedulable || widget.onQuickRun == null
           ? null
           : () async {
-              await widget.onQuickRun!(task);
-              if (mounted) {
-                setState(() => _applied[task] = _QuickAction.run);
-              }
+              final ok = await widget.onQuickRun!(task);
+              if (!mounted) return;
+              // 只有真的执行成功才染绿，否则会和任务列表的行为不一致。
+              setState(() {
+                if (ok) {
+                  _applied[task] = _QuickAction.run;
+                } else {
+                  _applied.remove(task);
+                }
+              });
             },
       onWait: !schedulable || widget.onQuickWait == null
           ? null
           : () async {
-              await widget.onQuickWait!(task);
-              if (mounted) {
-                setState(() => _applied[task] = _QuickAction.wait);
-              }
+              final ok = await widget.onQuickWait!(task);
+              if (!mounted) return;
+              setState(() {
+                if (ok) {
+                  _applied[task] = _QuickAction.wait;
+                } else {
+                  _applied.remove(task);
+                }
+              });
             },
       onOpen: widget.onEdit == null ? null : () => widget.onEdit!(task),
     );
@@ -1882,7 +1941,7 @@ class _CatalogTaskChip extends StatelessWidget {
                     : (enabled ? '已启用（点击取消）' : '未启用（点击启用）'),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(999),
-                  onTap: onToggleEnabled,
+                  onTap: _dismissingTooltipTap(onToggleEnabled),
                   child: Icon(
                     enabled
                         ? Icons.check_circle_rounded
@@ -1947,7 +2006,7 @@ class _CatalogTaskChip extends StatelessWidget {
         absorbing: onTap == null,
         child: InkWell(
           borderRadius: BorderRadius.circular(5),
-          onTap: onTap,
+          onTap: _dismissingTooltipTap(onTap),
           child: SizedBox(
             width: 18,
             height: 18,
@@ -2116,7 +2175,7 @@ class _TaskRowTile extends StatelessWidget {
             message: locked ? '任务执行中，无法取消' : '已启用（点击取消）',
             child: InkWell(
               borderRadius: BorderRadius.circular(999),
-              onTap: onToggleEnabled,
+              onTap: _dismissingTooltipTap(onToggleEnabled),
               child: Icon(
                 Icons.check_circle_rounded,
                 size: 15,
@@ -2272,6 +2331,12 @@ class _OverviewColumnState extends State<_OverviewColumn> {
   bool _statsLoading = false;
   Timer? _statsTimer;
 
+  /// 递增的请求序号：切配置后旧请求的返回值必须丢弃。
+  int _statsRequestId = 0;
+
+  /// 请求进行中又被要求刷新（例如切了配置），等当前请求收尾后补一次。
+  bool _statsPending = false;
+
   static const int _kTodayStatsRefreshSeconds = 60;
 
   /// Today's date key (`yyyy-MM-dd`) used by the statistics endpoints.
@@ -2302,7 +2367,13 @@ class _OverviewColumnState extends State<_OverviewColumn> {
   /// - 成功才记录时间戳，避免"请求失败要等满 60 秒"。
   Future<void> _refreshTodayStats({bool force = false}) async {
     final name = widget.script?.name.trim() ?? '';
-    if (name.isEmpty || _statsLoading) {
+    if (name.isEmpty) {
+      return;
+    }
+    if (_statsLoading) {
+      // 上一次请求还在飞（多为刚切走的配置）：直接 return 会让新配置一直
+      // 停在「--」直到 60 秒定时器，所以标记一下、等它收尾后补拉。
+      _statsPending = true;
       return;
     }
     final fetchedAt = _statsFetchedAt;
@@ -2313,9 +2384,12 @@ class _OverviewColumnState extends State<_OverviewColumn> {
       return;
     }
     _statsLoading = true;
+    final requestId = ++_statsRequestId;
     try {
       final day = await ApiClient().getScriptStatisticsDay(name, _todayKey());
-      if (!mounted || widget.script?.name.trim() != name) {
+      if (!mounted ||
+          requestId != _statsRequestId ||
+          widget.script?.name.trim() != name) {
         return;
       }
       setState(() {
@@ -2326,6 +2400,11 @@ class _OverviewColumnState extends State<_OverviewColumn> {
       logger.e('今日统计刷新失败（$name）: $error');
     } finally {
       _statsLoading = false;
+      if (mounted && _statsPending) {
+        _statsPending = false;
+        // 用微任务排队，避免在 finally 里递归调用。
+        Future.microtask(() => _refreshTodayStats(force: true));
+      }
     }
   }
 
@@ -2414,6 +2493,11 @@ class _OverviewColumnState extends State<_OverviewColumn> {
       _loadMenu();
       _todayStats = null;
       _statsFetchedAt = null;
+      // 上一个配置的搜索词留在这里只会显示「未找到匹配任务」。
+      if (_searchController.text.isNotEmpty) {
+        _searchController.clear();
+        _searchQuery = '';
+      }
       _refreshTodayStats(force: true);
     }
   }
@@ -2540,6 +2624,7 @@ class _OverviewColumnState extends State<_OverviewColumn> {
                       enabledTaskNames: enabledTaskNames,
                       runningTaskName: runningTaskName,
                       scriptRunning: isRunning,
+                      scriptName: script?.name ?? '',
                       onToggleEnabled: script == null
                           ? null
                           : (task, enable) => _toggleTaskEnabled(
@@ -2556,9 +2641,11 @@ class _OverviewColumnState extends State<_OverviewColumn> {
                                 taskName: task,
                                 runNow: true,
                               );
-                              if (ok) {
-                                showToast('立即执行', task.tr);
-                              }
+                              showToast(
+                                ok ? '立即执行' : '操作失败',
+                                ok ? task.tr : '$task 未能立即执行',
+                              );
+                              return ok;
                             },
                       onQuickWait: script == null
                           ? null
@@ -2569,9 +2656,11 @@ class _OverviewColumnState extends State<_OverviewColumn> {
                                 taskName: task,
                                 runNow: false,
                               );
-                              if (ok) {
-                                showToast('已延后', task.tr);
-                              }
+                              showToast(
+                                ok ? '已延后' : '操作失败',
+                                ok ? task.tr : '$task 未能延后',
+                              );
+                              return ok;
                             },
                       onEdit: script == null
                           ? null
@@ -2727,7 +2816,9 @@ class _CurrentConfigCard extends StatelessWidget {
                                 canRename ? '点击重命名' : '运行中的配置不可重命名',
                             child: InkWell(
                               borderRadius: BorderRadius.circular(7),
-                              onTap: canRename ? onRename : null,
+                              onTap: canRename
+                                  ? _dismissingTooltipTap(onRename)
+                                  : null,
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 2,
