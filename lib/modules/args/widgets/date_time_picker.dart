@@ -126,84 +126,14 @@ class DateTimePickerBaseState extends State<DateTimePickerBase> {
   /// Opens a dialog that edits each time component in its own field, so the
   /// user does not have to scroll a wheel or type a full formatted string.
   Future<void> _showComponentsEditor(BuildContext context) async {
-    final labels = componentLabels;
-    final initial = parseComponents(widget.value);
-    final controllers = <TextEditingController>[
-      for (var i = 0; i < labels.length; i++)
-        TextEditingController(text: initial[i]),
-    ];
-    final focusNodes = <FocusNode>[
-      for (var i = 0; i < labels.length; i++) FocusNode(),
-    ];
-    // Select the whole value when a field gains focus, so typing a number
-    // replaces the old content without deleting it first.
-    for (var i = 0; i < focusNodes.length; i++) {
-      final index = i;
-      focusNodes[index].addListener(() {
-        if (!focusNodes[index].hasFocus) {
-          return;
-        }
-        final controller = controllers[index];
-        controller.selection = TextSelection(
-          baseOffset: 0,
-          extentOffset: controller.text.length,
-        );
-      });
-    }
     final result = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('分项修改时间'),
-        content: SizedBox(
-          width: labels.length > 4 ? 420 : 320,
-          child: Row(
-            children: [
-              for (var i = 0; i < labels.length; i++) ...[
-                if (i > 0) const SizedBox(width: 6),
-                Expanded(
-                  child: TextField(
-                    controller: controllers[i],
-                    focusNode: focusNodes[i],
-                    autofocus: i == 0,
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    decoration: InputDecoration(
-                      labelText: labels[i],
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 10,
-                      ),
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(I18n.cancel.tr),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(
-              joinComponents(
-                controllers.map((c) => c.text.trim()).toList(),
-              ),
-            ),
-            child: Text(I18n.confirm.tr),
-          ),
-        ],
+      builder: (dialogContext) => _ComponentsEditorDialog(
+        labels: componentLabels,
+        initial: parseComponents(widget.value),
+        joinValue: joinComponents,
       ),
     );
-    for (final controller in controllers) {
-      controller.dispose();
-    }
-    for (final node in focusNodes) {
-      node.dispose();
-    }
     if (result == null || result.isEmpty) {
       return;
     }
@@ -273,6 +203,122 @@ class DateTimePickerBaseState extends State<DateTimePickerBase> {
   String _twoDigits(int? value) {
     final normalized = value ?? 0;
     return normalized < 10 ? '0$normalized' : '$normalized';
+  }
+}
+
+/// 「分项修改时间」弹窗。
+///
+/// controllers / FocusNode 必须由弹窗自身持有，并在它自己的 dispose 里释放：
+/// 如果在 `await showDialog(...)` 返回后立刻 dispose，弹窗此时还在播放退出动画、
+/// TextField 仍然挂着这些节点，就会抛
+/// "A FocusNode was used after being disposed"。
+class _ComponentsEditorDialog extends StatefulWidget {
+  const _ComponentsEditorDialog({
+    required this.labels,
+    required this.initial,
+    required this.joinValue,
+  });
+
+  final List<String> labels;
+  final List<String> initial;
+  final String Function(List<String> parts) joinValue;
+
+  @override
+  State<_ComponentsEditorDialog> createState() =>
+      _ComponentsEditorDialogState();
+}
+
+class _ComponentsEditorDialogState extends State<_ComponentsEditorDialog> {
+  late final List<TextEditingController> _controllers;
+  late final List<FocusNode> _focusNodes;
+
+  @override
+  void initState() {
+    super.initState();
+    _controllers = <TextEditingController>[
+      for (var i = 0; i < widget.labels.length; i++)
+        TextEditingController(text: widget.initial[i]),
+    ];
+    _focusNodes = <FocusNode>[
+      for (var i = 0; i < widget.labels.length; i++) FocusNode(),
+    ];
+    // Select the whole value when a field gains focus, so typing a number
+    // replaces the old content without deleting it first.
+    for (var i = 0; i < _focusNodes.length; i++) {
+      final index = i;
+      _focusNodes[index].addListener(() {
+        if (!mounted || !_focusNodes[index].hasFocus) {
+          return;
+        }
+        final controller = _controllers[index];
+        controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: controller.text.length,
+        );
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _controllers) {
+      controller.dispose();
+    }
+    for (final node in _focusNodes) {
+      node.dispose();
+    }
+    super.dispose();
+  }
+
+  void _submit() {
+    Navigator.of(context).pop(
+      widget.joinValue(_controllers.map((c) => c.text.trim()).toList()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('分项修改时间'),
+      content: SizedBox(
+        width: widget.labels.length > 4 ? 420 : 320,
+        child: Row(
+          children: [
+            for (var i = 0; i < widget.labels.length; i++) ...[
+              if (i > 0) const SizedBox(width: 6),
+              Expanded(
+                child: TextField(
+                  controller: _controllers[i],
+                  focusNode: _focusNodes[i],
+                  autofocus: i == 0,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  decoration: InputDecoration(
+                    labelText: widget.labels[i],
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 10,
+                    ),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(I18n.cancel.tr),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: Text(I18n.confirm.tr),
+        ),
+      ],
+    );
   }
 }
 
