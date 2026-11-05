@@ -29,11 +29,10 @@ void main() {
   });
 
   group('collectDashboardTasks', () {
-    test('running first then pending sorted by time', () {
+    test('running task stays first', () {
       final tasks = <TaskItemModel>[
         TaskItemModel('CDB', '突破', '2026-10-21 15:00:00'),
         TaskItemModel('CDB', '道馆', '2026-10-21 13:00:00'),
-        TaskItemModel('CDB', '', '2026-10-21 12:00:00'),
       ];
       final entries = collectDashboardTasks(
         runningTaskName: '结界踏卡',
@@ -42,10 +41,37 @@ void main() {
       expect(entries.length, 3);
       expect(entries[0].name, '结界踏卡');
       expect(entries[0].timeText, '运行中');
-      expect(entries[1].name, '道馆');
-      expect(entries[1].timeText, '13:00');
-      expect(entries[2].name, '突破');
-      expect(entries[2].timeText, '15:00');
+      expect(entries[0].type, DashboardTaskType.running);
+    });
+
+    test('keeps the backend pending order instead of sorting by time', () {
+      // Real CDB case: schedule_rule = Filter puts RealmRaid (11-04) ahead of
+      // MartialTournament (09-17) even though the latter is far more overdue.
+      final entries = collectDashboardTasks(
+        runningTaskName: '',
+        pendingTasks: <TaskItemModel>[
+          TaskItemModel('CDB', '结界突破', '2026-11-04 19:52:39'),
+          TaskItemModel('CDB', '日常杂项', '2026-11-04 19:51:35'),
+          TaskItemModel('CDB', '武道大会', '2026-09-17 11:03:30'),
+        ],
+      );
+      expect(entries.map((entry) => entry.name).toList(), <String>[
+        '结界突破',
+        '日常杂项',
+        '武道大会',
+      ]);
+      expect(entries.first.timeText, '19:52');
+    });
+
+    test('skips tasks without a name', () {
+      final entries = collectDashboardTasks(
+        runningTaskName: '',
+        pendingTasks: <TaskItemModel>[
+          TaskItemModel('CDB', '', '2026-10-21 12:00:00'),
+          TaskItemModel('CDB', '道馆', '2026-10-21 13:00:00'),
+        ],
+      );
+      expect(entries.single.name, '道馆');
     });
 
     test('unparseable time falls back to --:--', () {
@@ -59,20 +85,24 @@ void main() {
       expect(entries.single.time, isNull);
     });
 
-    test('merges waiting tasks into the sorted list', () {
+    test('appends waiting tasks after pending in server order', () {
       final entries = collectDashboardTasks(
         runningTaskName: '',
         pendingTasks: <TaskItemModel>[
           TaskItemModel('CDB', 'Overdue', '2026-10-07 01:40:08'),
         ],
         waitingTasks: <TaskItemModel>[
+          TaskItemModel('CDB', 'LateNight', '2026-10-21 23:59:00'),
           TaskItemModel('CDB', 'Tonight', '2026-10-21 19:28:58'),
         ],
       );
-      expect(entries.length, 2);
-      expect(entries[0].name, 'Overdue');
-      expect(entries[1].name, 'Tonight');
-      expect(entries[1].timeText, '19:28');
+      expect(entries.map((entry) => entry.name).toList(), <String>[
+        'Overdue',
+        'LateNight',
+        'Tonight',
+      ]);
+      expect(entries[2].timeText, '19:28');
+      expect(entries[2].type, DashboardTaskType.waiting);
     });
 
     test('empty input returns empty list', () {
