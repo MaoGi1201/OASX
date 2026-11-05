@@ -8,6 +8,16 @@ import 'package:get/get.dart';
 ///
 /// `xxxFor(brightness)` variants exist because [ThemeData] is built for an
 /// explicit brightness, while widgets use the context-free getters.
+///
+/// Dark mode is deliberately *not* an inversion of light mode: the surfaces sit
+/// on a dark grey instead of pure black and the text stops short of white,
+/// which keeps the body contrast near 10.7:1. Pure black plus near-white text
+/// makes glyph edges glow (halation) and is the main source of eye strain during
+/// long sessions; mainstream editors settle in the 7-11:1 range for the same
+/// reason.
+///
+/// Surface elevation runs light-wards: `bg` < `panel` < `surface3` < `card` <
+/// `surface2`. `surface3` is the recessed tone used for inputs and grooves.
 class AppColors {
   const AppColors._();
 
@@ -19,47 +29,47 @@ class AppColors {
 
   // Surfaces
   static Color bgFor(Brightness b) =>
-      _pick(b, const Color(0xFFF3F4F7), const Color(0xFF0A0C0F));
+      _pick(b, const Color(0xFFF3F4F7), const Color(0xFF191C21));
   static Color panelFor(Brightness b) =>
-      _pick(b, const Color(0xFFFFFFFF), const Color(0xFF12151A));
+      _pick(b, const Color(0xFFFFFFFF), const Color(0xFF20242A));
   static Color cardFor(Brightness b) =>
-      _pick(b, const Color(0xFFF7F8FA), const Color(0xFF1A1F26));
+      _pick(b, const Color(0xFFF7F8FA), const Color(0xFF282D35));
   static Color surface2For(Brightness b) =>
-      _pick(b, const Color(0xFFEDEFF3), const Color(0xFF1B2129));
+      _pick(b, const Color(0xFFEDEFF3), const Color(0xFF2F353E));
   static Color surface3For(Brightness b) =>
-      _pick(b, const Color(0xFFF0F2F5), const Color(0xFF141820));
+      _pick(b, const Color(0xFFF0F2F5), const Color(0xFF232830));
   static Color selectedBgFor(Brightness b) =>
-      _pick(b, const Color(0xFFEAF6F2), const Color(0xFF1C232C));
+      _pick(b, const Color(0xFFEAF6F2), const Color(0xFF1F2E2A));
   static Color selectedBorderFor(Brightness b) =>
-      _pick(b, const Color(0xFFBEE8DC), const Color(0xFF2B3540));
+      _pick(b, const Color(0xFFBEE8DC), const Color(0xFF2C4A42));
   static Color borderFor(Brightness b) =>
-      _pick(b, const Color(0xFFE1E5EB), const Color(0xFF232932));
+      _pick(b, const Color(0xFFE1E5EB), const Color(0xFF343B45));
 
   // Text
   static Color textFor(Brightness b) =>
-      _pick(b, const Color(0xFF1B1F24), const Color(0xFFE8EAED));
+      _pick(b, const Color(0xFF1B1F24), const Color(0xFFC6CED9));
   static Color text2For(Brightness b) =>
-      _pick(b, const Color(0xFF5A6472), const Color(0xFF9AA3AF));
+      _pick(b, const Color(0xFF5A6472), const Color(0xFF9BA5B2));
   static Color text3For(Brightness b) =>
-      _pick(b, const Color(0xFF8B94A3), const Color(0xFF6B7280));
+      _pick(b, const Color(0xFF8B94A3), const Color(0xFF848D9A));
 
   // Accents
   static Color tealFor(Brightness b) =>
-      _pick(b, const Color(0xFF0E9E7A), const Color(0xFF2FD6A5));
+      _pick(b, const Color(0xFF0E9E7A), const Color(0xFF3CBFA0));
   static Color tealDimFor(Brightness b) =>
-      _pick(b, const Color(0xFFDFF5EE), const Color(0xFF123B34));
+      _pick(b, const Color(0xFFDFF5EE), const Color(0xFF16332C));
   static Color greenFor(Brightness b) =>
-      _pick(b, const Color(0xFF16A34A), const Color(0xFF4ADE80));
+      _pick(b, const Color(0xFF16A34A), const Color(0xFF52B788));
   static Color yellowFor(Brightness b) =>
-      _pick(b, const Color(0xFFD97706), const Color(0xFFF0B429));
+      _pick(b, const Color(0xFFD97706), const Color(0xFFD9A441));
   static Color redFor(Brightness b) =>
-      _pick(b, const Color(0xFFDC2626), const Color(0xFFE5484D));
+      _pick(b, const Color(0xFFDC2626), const Color(0xFFDB5A5E));
   static Color blueFor(Brightness b) =>
-      _pick(b, const Color(0xFF2563EB), const Color(0xFF5B8DEF));
+      _pick(b, const Color(0xFF2563EB), const Color(0xFF5C8BD9));
 
   /// Text colour on top of a filled accent button.
   static Color onAccentFor(Brightness b) =>
-      b == Brightness.dark ? const Color(0xFF04140F) : Colors.white;
+      b == Brightness.dark ? const Color(0xFF0B1F19) : Colors.white;
 
   static bool get isDark => Get.isDarkMode;
 
