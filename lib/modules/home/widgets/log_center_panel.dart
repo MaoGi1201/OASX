@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:oasx/api/api_client.dart';
+import 'package:oasx/config/app_colors.dart';
 import 'package:oasx/modules/log/log_browser_models.dart';
 import 'package:oasx/modules/log/script_log_browser_controller.dart';
 import 'package:oasx/translation/i18n_content.dart';
@@ -16,17 +17,14 @@ part 'log_center_log_text_span_builder.dart';
 part 'log_center_toolbar.dart';
 part 'log_center_panel_scroll.dart';
 
-// Dark/light palette shared by the log center controls (matches the dashboard).
-Color get _logTeal =>
-    Get.isDarkMode ? const Color(0xFF2FD6A5) : const Color(0xFF0E9E7A);
-Color get _logTealDim =>
-    Get.isDarkMode ? const Color(0xFF123B34) : const Color(0xFFDFF5EE);
-Color get _logBorder =>
-    Get.isDarkMode ? const Color(0xFF232932) : const Color(0xFFE1E5EB);
-Color get _logText2 =>
-    Get.isDarkMode ? const Color(0xFF9AA3AF) : const Color(0xFF5A6472);
-Color get _logSurface2 =>
-    Get.isDarkMode ? const Color(0xFF1B2129) : const Color(0xFFEDEFF3);
+// Log center controls follow the dashboard palette. Kept as named getters so
+// the part files stay readable, but the values come from AppColors so a single
+// palette change reaches them too.
+Color get _logTeal => AppColors.teal;
+Color get _logTealDim => AppColors.tealDim;
+Color get _logBorder => AppColors.border;
+Color get _logText2 => AppColors.text2;
+Color get _logSurface2 => AppColors.surface2;
 
 /// Script log center backed by the `/logs` browser API.
 class LogCenterPanel extends StatefulWidget {

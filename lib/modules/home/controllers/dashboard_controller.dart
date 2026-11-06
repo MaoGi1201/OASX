@@ -142,6 +142,10 @@ class HomeDashboardController extends GetxController {
   final _taskParameterEntrySource = Rxn<HomeTaskParameterEntrySource>();
   final _taskAvailabilityCache = <String, bool>{};
 
+  /// 正在执行启停的配置名。连点会并发发出多批 start/stop，
+  /// 最终状态取决于返回顺序，所以整批执行期间忽略重复点击。
+  final powerPendingScripts = <String>{};
+
   ScriptService get _scriptService => Get.find<ScriptService>();
 
   @override

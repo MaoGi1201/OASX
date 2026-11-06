@@ -41,7 +41,7 @@ class HomeTitleBar extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Image.asset('assets/images/Icon-app.png', height: 30, width: 30),
+          Image.asset('assets/images/Logo-app.png', height: 30, width: 30),
           const SizedBox(width: 14),
           Flexible(child: _TitleLabel(text: 'OASX / ${I18n.home.tr}')),
         ],
@@ -69,7 +69,7 @@ class SettingTitle extends StatelessWidget {
             BackButton(onPressed: _backHomeOrPop),
             const SizedBox(width: 8),
           ],
-          Image.asset('assets/images/Icon-app.png', height: 30, width: 30),
+          Image.asset('assets/images/Logo-app.png', height: 30, width: 30),
           const SizedBox(width: 14),
           Flexible(child: _TitleLabel(text: 'OASX / ${I18n.setting.tr}')),
         ],
@@ -112,7 +112,7 @@ class ServerTitle extends StatelessWidget {
             }
             return const SizedBox.shrink();
           }),
-          Image.asset('assets/images/Icon-app.png', height: 30, width: 30),
+          Image.asset('assets/images/Logo-app.png', height: 30, width: 30),
           const SizedBox(width: 14),
           const Flexible(child: _TitleLabel(text: 'OASX / Server')),
         ],

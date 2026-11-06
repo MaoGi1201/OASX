@@ -73,15 +73,28 @@ extension HomeDashboardLinkingX on HomeDashboardController {
     required String sourceScript,
     required bool enable,
   }) async {
-    final targets = _collectCascadeTargets(sourceScript);
-    for (final name in targets) {
-      if (enable) {
-        await _scriptService.startScript(name);
-      } else {
-        await _scriptService.stopScript(name);
-        // 停止后重新拉一次 schedule，刚停下的任务才不会从列表里消失。
-        _scriptService.wsService.send(name, 'get_schedule');
+    final source = sourceScript.trim();
+    if (source.isEmpty || powerPendingScripts.contains(source)) {
+      return;
+    }
+    final targets = _collectCascadeTargets(source);
+    if (targets.isEmpty) {
+      return;
+    }
+    // 整批标记：批次执行期间，点同一批里的另一个配置也一并忽略。
+    powerPendingScripts.addAll(targets);
+    try {
+      for (final name in targets) {
+        if (enable) {
+          await _scriptService.startScript(name);
+        } else {
+          await _scriptService.stopScript(name);
+          // 停止后重新拉一次 schedule，刚停下的任务才不会从列表里消失。
+          _scriptService.wsService.send(name, 'get_schedule');
+        }
       }
+    } finally {
+      powerPendingScripts.removeAll(targets);
     }
   }
 

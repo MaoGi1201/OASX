@@ -53,12 +53,24 @@ const List<String> _kWeekdayLabels = <String>[
   '周日',
 ];
 
-/// Collects the dashboard task list: the running task first, then pending and
-/// waiting tasks sorted ascending by their next-run time.
+/// Collects the dashboard task list: the running task first, then the backend's
+/// `pending` and `waiting` arrays **in the order the server sent them**.
 ///
-/// The OAS schedule splits future tasks into `pending` (already due / overdue)
-/// and `waiting` (scheduled for later). Today's tasks usually live in
-/// `waiting`, so both lists must be merged or the day list looks empty.
+/// The queue order is decided by the backend alone:
+/// - `schedule_rule = Filter` (OAS default) sorts `pending` by the fixed
+///   `ConfigManual.SCHEDULER_PRIORITY` table, so `next_run` does not decide who
+///   runs first;
+/// - `FIFO` sorts `pending` by `next_run`;
+/// - `waiting` is always sorted by `next_run` on the server.
+///
+/// Re-sorting `pending` locally by time makes the first row disagree with the
+/// task the script will actually start, so keep the server order and only merge
+/// the two arrays. Same contract as the built-in OAS GUI (`Overview.qml`
+/// appends both arrays verbatim).
+///
+/// The OAS schedule splits tasks into `pending` (already due / overdue) and
+/// `waiting` (scheduled for later). Today's tasks usually live in `waiting`, so
+/// both lists must be merged or the day list looks empty.
 List<DashboardTaskEntry> collectDashboardTasks({
   required String runningTaskName,
   required List<TaskItemModel> pendingTasks,
@@ -95,10 +107,7 @@ List<DashboardTaskEntry> collectDashboardTasks({
 
   addTasks(pendingTasks, DashboardTaskType.pending);
   addTasks(waitingTasks, DashboardTaskType.waiting);
-  final runningEntries = entries.where((entry) => entry.time == null).toList();
-  final timedEntries = entries.where((entry) => entry.time != null).toList()
-    ..sort((a, b) => a.time!.compareTo(b.time!));
-  return <DashboardTaskEntry>[...runningEntries, ...timedEntries];
+  return entries;
 }
 
 /// Builds the eight day buckets (today + next seven days) for the distribution
