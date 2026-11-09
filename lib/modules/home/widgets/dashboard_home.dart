@@ -759,7 +759,10 @@ class _DashboardHeader extends StatelessWidget {
                   for (final name in names)
                     Padding(
                       key: ValueKey<String>('account-tab-$name'),
-                      padding: const EdgeInsets.only(right: 8, top: 6),
+                      // 只留右边距：标签 34px 与右侧「全部 N」按钮同高，
+                      // 交给 Row 的居中让两者基线齐平（之前多一个 top: 6，
+                      // 会让标签整体下沉 3px，窄屏下和「全部」按钮看着错位）。
+                      padding: const EdgeInsets.only(right: 8),
                       // 每个标签独立订阅自己配置的 state，否则点击非当前
                       // 配置的启停开关时，那个标签的启停状态不会刷新。
                       child: Obx(
@@ -1366,7 +1369,26 @@ class _TasksColumnState extends State<_TasksColumn> {
     // updates rebuild the list (the parent Obx only reads the model object).
     return Obx(() {
       final script = widget.script;
-      final allEntries = _collectTasks(script);
+      // 刚被取消的任务先从列表里拿掉：取消配置里最后一个启用任务后，
+      // 后端的 get_next() 会抛 RequestHumanTakeover 把 WS 连接掐断，
+      // 前端再也收不到新的 schedule，只能按本地操作结果即时生效。
+      // 记录放在 controller 里，任务目录的勾选状态用的是同一份数据。
+      final disabledTasks = script == null
+          ? const <String>{}
+          : widget.controller.locallyDisabledTaskNames[script.name] ??
+              const <String>{};
+      // 后端若又把它排进 pending/waiting，说明确实重新启用了，恢复显示。
+      final liveNames = <String>{
+        ...?script?.pendingTaskList.map((task) => task.taskName.value.trim()),
+        ...?script?.waitingTaskList.map((task) => task.taskName.value.trim()),
+      };
+      final allEntries = _collectTasks(script)
+          .where(
+            (entry) =>
+                !disabledTasks.contains(entry.name) ||
+                liveNames.contains(entry.name),
+          )
+          .toList(growable: false);
       final todayEntries = _filterEntriesForDay(
         allEntries,
         widget.selectedDayIndex,
@@ -3124,6 +3146,14 @@ class _DoubleIcon extends StatelessWidget {
   }
 }
 
+/// 配置卡右下两个按钮共用同一尺寸。
+///
+/// 「启动配置/停止配置/重启配置」在行 1 末尾，「调整计划」在行 2 末尾，
+/// 文案都是 4 个字；两行右边界相同，再固定成同一宽高后按钮就竖直对齐了。
+/// 78 = 4 字 × 12.5 + 左右各 14 的内边距，和原来的按钮内边距观感一致。
+const double _kConfigActionWidth = 78;
+const double _kConfigActionHeight = 30;
+
 class _RunButton extends StatelessWidget {
   const _RunButton({
     required this.running,
@@ -3167,34 +3197,29 @@ class _RunButton extends StatelessWidget {
     } else {
       label = I18n.homeConfigStartLabel.tr;
     }
-    return Tooltip(
-      message: running
-          ? I18n.homeConfigStopTip.tr
-          : (warning
-              ? I18n.homeConfigRestartTip.tr
-              : I18n.homeConfigStartTip.tr),
-      waitDuration: const Duration(milliseconds: 350),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: enabled ? _dismissingTooltipTap(onTap) : null,
-        child: Container(
-          height: 30,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: enabled ? background : AppColors.border,
-            ),
+    // 文案已经是「启动配置/停止配置/重启配置」，语义自明，不再挂悬浮提示。
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: _kConfigActionWidth,
+        height: _kConfigActionHeight,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: enabled ? background : AppColors.border,
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-              color: foreground,
-            ),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: foreground,
           ),
         ),
       ),
@@ -3219,8 +3244,8 @@ class _PillButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       onTap: onTap,
       child: Container(
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        width: _kConfigActionWidth,
+        height: _kConfigActionHeight,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: primary ? AppColors.teal : Colors.transparent,
@@ -3231,8 +3256,10 @@ class _PillButton extends StatelessWidget {
         ),
         child: Text(
           label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 12.5,
             fontWeight: primary ? FontWeight.w600 : FontWeight.w400,
             color: primary
                 ? (AppColors.isDark ? const Color(0xFF04140F) : Colors.white)

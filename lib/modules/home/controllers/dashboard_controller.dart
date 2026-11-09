@@ -142,6 +142,15 @@ class HomeDashboardController extends GetxController {
   final _taskParameterEntrySource = Rxn<HomeTaskParameterEntrySource>();
   final _taskAvailabilityCache = <String, bool>{};
 
+  /// 本会话里刚被取消勾选的任务（配置名 → 任务名集合）。
+  ///
+  /// 取消掉配置里最后一个启用任务后，后端 `get_schedule_data()` 的 `running` 槽
+  /// 仍会把它报上来（`config.self.task` 只在 `get_next()` 里赋值、从不复位），
+  /// 而 WS 连接又因为 `get_next()` 抛 RequestHumanTakeover 被掐断、前端拿不到
+  /// 新快照。若直接采信后端数据，总览里的勾选会一直挂着。
+  /// 这里记住本地操作结果，重新启用时清掉。
+  final locallyDisabledTaskNames = <String, Set<String>>{}.obs;
+
   /// 正在执行启停的配置名。连点会并发发出多批 start/stop，
   /// 最终状态取决于返回顺序，所以整批执行期间忽略重复点击。
   final powerPendingScripts = <String>{};

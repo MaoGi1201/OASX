@@ -149,26 +149,32 @@ class _LogTabChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: onTap,
-      child: Container(
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? _logTealDim : _logSurface2,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: selected ? _logTeal.withValues(alpha: 0.45) : _logBorder,
+    final radius = BorderRadius.circular(8);
+    return Material(
+      color: selected ? _logTealDim : _logSurface2,
+      borderRadius: radius,
+      // 裁掉水波纹溢出部分，否则 InkSparkle 会画到卡片上，
+      // 在按钮外围留下一圈“阴影”。
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: _dismissingLogTooltipTap(onTap),
+        child: Container(
+          height: 28,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            border: Border.all(
+              color: selected ? _logTeal.withValues(alpha: 0.45) : _logBorder,
+            ),
           ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected ? _logTeal : _logText2,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              color: selected ? _logTeal : _logText2,
+            ),
           ),
         ),
       ),
@@ -192,23 +198,44 @@ class _LogIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(7);
     return Tooltip(
       message: tooltip,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(7),
-        onTap: onTap,
-        child: Container(
-          width: 28,
-          height: 28,
-          margin: const EdgeInsets.only(left: 6),
-          decoration: BoxDecoration(
-            color: _logSurface2,
-            borderRadius: BorderRadius.circular(7),
-            border: Border.all(color: _logBorder),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 6),
+        child: Material(
+          color: _logSurface2,
+          borderRadius: radius,
+          // 同 _LogTabChip：水波纹必须被按钮自身裁掉，
+          // 否则会在按钮外侧露出一圈浅灰“阴影”。
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: _dismissingLogTooltipTap(onTap),
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                borderRadius: radius,
+                border: Border.all(color: _logBorder),
+              ),
+              child: Icon(icon, size: 15, color: color ?? _logText2),
+            ),
           ),
-          child: Icon(icon, size: 15, color: color ?? _logText2),
         ),
       ),
     );
   }
+}
+
+/// 点击后立刻收起悬停提示。
+///
+/// 与仪表盘按钮保持一致：提示一直挂着会盖住下面的日志内容。
+VoidCallback? _dismissingLogTooltipTap(VoidCallback? onTap) {
+  if (onTap == null) {
+    return null;
+  }
+  return () {
+    Tooltip.dismissAllToolTips();
+    onTap();
+  };
 }

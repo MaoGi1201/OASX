@@ -270,9 +270,11 @@ final Map<String, String> _cn_ui = {
   I18n.homeConfigStartTip: '启动该配置',
   I18n.homeConfigStopTip: '停止该配置',
   I18n.homeConfigRestartTip: '配置已卡死，点击重新启动',
-  I18n.homeConfigStartLabel: '启动',
-  I18n.homeConfigStopLabel: '停止',
-  I18n.homeConfigRestartLabel: '重启',
+  // 三个状态文案统一成 4 个字（与下方的「调整计划」等宽），
+  // 配置卡里两行按钮的宽度差就消失了，见 _kConfigActionWidth。
+  I18n.homeConfigStartLabel: '启动配置',
+  I18n.homeConfigStopLabel: '停止配置',
+  I18n.homeConfigRestartLabel: '重启配置',
   I18n.homeOpenTaskParams: '编辑',
   I18n.homeTaskConfigureAndEnable: '配置并启用',
   I18n.homeTaskSelectPrompt: '请先从任务列表中选择任务',

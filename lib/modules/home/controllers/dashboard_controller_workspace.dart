@@ -43,6 +43,11 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
     for (final task in model.waitingTaskList) {
       _addQuickScheduleTaskName(model, names, seen, task.taskName.value);
     }
+    // 已被取消的任务不要参与批量调度（running 槽里的残留项）。
+    final disabled = locallyDisabledTaskNames[model.name];
+    if (disabled != null && disabled.isNotEmpty) {
+      names.removeWhere(disabled.contains);
+    }
     return names;
   }
 
@@ -217,7 +222,42 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
           .map((task) => task.taskName.value.trim())
           .where((taskName) => taskName.isNotEmpty),
     );
+    // 后端 running 槽会残留刚被取消的任务，按本地取消记录剔除，
+    // 否则「总览」里的勾选永远摘不掉。
+    final disabled = locallyDisabledTaskNames[model.name];
+    if (disabled != null && disabled.isNotEmpty) {
+      // 若它又出现在 pending/waiting 里（例如从原版 GUI 重新启用），
+      // 说明后端认定它仍在启用，就不再按本地记录剔除。
+      final scheduled = <String>{
+        ...model.pendingTaskList.map((task) => task.taskName.value.trim()),
+        ...model.waitingTaskList.map((task) => task.taskName.value.trim()),
+      };
+      names.removeAll(disabled.where((name) => !scheduled.contains(name)));
+    }
     return names;
+  }
+
+  /// 记录一次本地启停结果，供 [enabledTaskNamesFor] 剔除残留的 running 项。
+  void markTaskEnabledLocally(
+    String scriptName,
+    String taskName,
+    bool enable,
+  ) {
+    final script = scriptName.trim();
+    final task = taskName.trim();
+    if (script.isEmpty || task.isEmpty) {
+      return;
+    }
+    final next = <String>{...?locallyDisabledTaskNames[script]};
+    final changed = enable ? next.remove(task) : next.add(task);
+    if (!changed) {
+      return;
+    }
+    if (next.isEmpty) {
+      locallyDisabledTaskNames.remove(script);
+    } else {
+      locallyDisabledTaskNames[script] = next;
+    }
   }
 
   bool isTaskEnabled(ScriptModel model, String taskName) {
@@ -536,15 +576,27 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
     }
     final argsController = Get.find<ArgsController>();
     if (!applyLinkedScope) {
-      return argsController.updateScriptTask(source, normalizedTask, enable);
+      final ok =
+          await argsController.updateScriptTask(source, normalizedTask, enable);
+      if (ok) {
+        markTaskEnabledLocally(source, normalizedTask, enable);
+      }
+      return ok;
     }
-    return _applyTaskActionAcrossLinkedScope(
-      sourceScript: source,
-      taskName: normalizedTask,
-      action: (target, resolvedTask) {
-        return argsController.updateScriptTask(target, resolvedTask, enable);
-      },
-    );
+    final targets = await _resolveLinkedTaskTargets(source, normalizedTask);
+    if (targets.isEmpty) {
+      return false;
+    }
+    var allSuccess = true;
+    for (final target in targets) {
+      final ret =
+          await argsController.updateScriptTask(target, normalizedTask, enable);
+      if (ret) {
+        markTaskEnabledLocally(target, normalizedTask, enable);
+      }
+      allSuccess = ret && allSuccess;
+    }
+    return allSuccess;
   }
 
   bool _matchesVisibleFilter(ScriptModel model) {
