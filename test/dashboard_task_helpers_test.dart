@@ -146,11 +146,27 @@ void main() {
       expect(days.length, 8);
       expect(days[0].label, '今天');
       expect(days[0].today, isTrue);
-      expect(days[0].count, 2);
+      // a、b 加上没有 next_run 的「运行中」e —— 运行中的任务同样算在今天。
+      expect(days[0].count, 3);
       expect(days[1].label, '周四');
       expect(days[1].count, 1);
       final total = days.fold<int>(0, (sum, day) => sum + day.count);
-      expect(total, 3);
+      expect(total, 4);
+    });
+
+    test('running task alone still counts toward today', () {
+      final days = buildDashboardDayCounts(
+        <DashboardTaskEntry>[
+          const DashboardTaskEntry(
+            name: 'running',
+            timeText: '运行中',
+            type: DashboardTaskType.running,
+          ),
+        ],
+        now: DateTime(2026, 10, 21, 12),
+      );
+      // 只剩最后一个任务在跑时，「今天」不能显示 0。
+      expect(days[0].count, 1);
     });
 
     test('overdue tasks count toward today', () {

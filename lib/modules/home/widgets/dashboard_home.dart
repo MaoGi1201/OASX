@@ -354,8 +354,10 @@ class _AllConfigsTile extends StatelessWidget {
     // 和顶栏配置标签上的启停按钮保持同一套样式与图标。
     final powerButton = Tooltip(
       message: running
-          ? '停止该配置'
-          : (warning ? '配置已卡死，点击重新启动' : '启动该配置'),
+          ? I18n.homeConfigStopTip.tr
+          : (warning
+              ? I18n.homeConfigRestartTip.tr
+              : I18n.homeConfigStartTip.tr),
       waitDuration: const Duration(milliseconds: 350),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
@@ -700,7 +702,10 @@ class _DashboardHeader extends StatelessWidget {
                   for (final name in names)
                     Padding(
                       key: ValueKey<String>('account-tab-$name'),
-                      padding: const EdgeInsets.only(right: 8, top: 6),
+                      // 只留右边距：标签 34px 与右侧「全部 N」按钮同高，
+                      // 交给 Row 的居中让两者基线齐平（之前多一个 top: 6，
+                      // 会让标签整体下沉 3px，窄屏下和「全部」按钮看着错位）。
+                      padding: const EdgeInsets.only(right: 8),
                       // 每个标签独立订阅自己配置的 state，否则点击非当前
                       // 配置的启停开关时，那个标签的启停状态不会刷新。
                       child: Obx(
@@ -999,12 +1004,12 @@ class _AccountTab extends StatelessWidget {
 
   String get _powerTip {
     if (_running) {
-      return '停止该配置';
+      return I18n.homeConfigStopTip.tr;
     }
     if (_warning) {
-      return '配置已卡死，点击重新启动';
+      return I18n.homeConfigRestartTip.tr;
     }
-    return '启动该配置';
+    return I18n.homeConfigStartTip.tr;
   }
 
   @override
@@ -1306,7 +1311,26 @@ class _TasksColumnState extends State<_TasksColumn> {
     // updates rebuild the list (the parent Obx only reads the model object).
     return Obx(() {
       final script = widget.script;
-      final allEntries = _collectTasks(script);
+      // 刚被取消的任务先从列表里拿掉：取消配置里最后一个启用任务后，
+      // 后端的 get_next() 会抛 RequestHumanTakeover 把 WS 连接掐断，
+      // 前端再也收不到新的 schedule，只能按本地操作结果即时生效。
+      // 记录放在 controller 里，任务目录的勾选状态用的是同一份数据。
+      final disabledTasks = script == null
+          ? const <String>{}
+          : widget.controller.locallyDisabledTaskNames[script.name] ??
+              const <String>{};
+      // 后端若又把它排进 pending/waiting，说明确实重新启用了，恢复显示。
+      final liveNames = <String>{
+        ...?script?.pendingTaskList.map((task) => task.taskName.value.trim()),
+        ...?script?.waitingTaskList.map((task) => task.taskName.value.trim()),
+      };
+      final allEntries = _collectTasks(script)
+          .where(
+            (entry) =>
+                !disabledTasks.contains(entry.name) ||
+                liveNames.contains(entry.name),
+          )
+          .toList(growable: false);
       final todayEntries = _filterEntriesForDay(
         allEntries,
         widget.selectedDayIndex,
@@ -2483,8 +2507,10 @@ class _OverviewColumnState extends State<_OverviewColumn> {
       final entries = _collectTasks(script);
       // Only the script process state tells us whether it is really running.
       // The schedule's `running` entry is stale for inactive configs, so it
-      // must not be used here or every config shows a red "停止运行" button.
+      // must not be used here or every config shows a red "停止" button.
       final isRunning = script?.state.value == ScriptState.running;
+      // 卡死状态要单独显示，否则胶囊和顶栏标签一个说「启动」一个说「卡死」。
+      final isWarning = script?.state.value == ScriptState.warning;
       final runningTaskName = isRunning
           ? (script?.runningTask.value.taskName.value.trim() ?? '')
           : '';
@@ -2509,6 +2535,7 @@ class _OverviewColumnState extends State<_OverviewColumn> {
             configName: script?.name ?? '',
             nextTaskText: nextTaskText,
             running: isRunning,
+            warning: isWarning,
             hasRunningTask: runningTaskName.isNotEmpty,
             bulkMode: controller.bulkQuickScheduleMode.value,
             todayRuntimeSeconds: _todayStats?.totalRuntimeSeconds,
@@ -2664,6 +2691,7 @@ class _CurrentConfigCard extends StatelessWidget {
     required this.configName,
     required this.nextTaskText,
     required this.running,
+    required this.warning,
     required this.hasRunningTask,
     required this.bulkMode,
     required this.todayRuntimeSeconds,
@@ -2682,8 +2710,11 @@ class _CurrentConfigCard extends StatelessWidget {
   final String configName;
   final String nextTaskText;
 
-  /// 配置进程是否在运行（决定按钮是「停止运行」还是「立即运行」）。
+  /// 配置进程是否在运行（决定按钮是「停止」还是「启动」）。
   final bool running;
+
+  /// 配置是否卡死（后端 state = warning）：按钮显示黄色「重启」，与顶栏一致。
+  final bool warning;
 
   /// 是否真的有任务正在执行（决定行首显示「当前」还是「下一个」）。
   final bool hasRunningTask;
@@ -2818,7 +2849,11 @@ class _CurrentConfigCard extends StatelessWidget {
                         onTap: onWaitAll,
                       ),
                       const SizedBox(width: 8),
-                      _RunButton(running: running, onTap: onStartStop),
+                      _RunButton(
+                        running: running,
+                        warning: warning,
+                        onTap: onStartStop,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -2931,8 +2966,8 @@ class _StatCell extends StatelessWidget {
   }
 }
 
-/// Green rounded "立即运行" button: starts the config when idle, stops it when
-/// running.
+/// Green rounded "启动" button: starts the config when idle, stops it when
+/// running. 不叫「立即运行」——那是任务级的操作，这里是配置的启停。
 /// Small square button used for the bulk "run all / wait all" actions.
 class _BulkIconButton extends StatelessWidget {
   const _BulkIconButton({
@@ -3053,30 +3088,64 @@ class _DoubleIcon extends StatelessWidget {
   }
 }
 
+/// 配置卡右下两个按钮共用同一尺寸。
+///
+/// 「启动配置/停止配置/重启配置」在行 1 末尾，「调整计划」在行 2 末尾，
+/// 文案都是 4 个字；两行右边界相同，再固定成同一宽高后按钮就竖直对齐了。
+/// 78 = 4 字 × 12.5 + 左右各 14 的内边距，和原来的按钮内边距观感一致。
+const double _kConfigActionWidth = 78;
+const double _kConfigActionHeight = 30;
+
 class _RunButton extends StatelessWidget {
-  const _RunButton({required this.running, this.onTap});
+  const _RunButton({
+    required this.running,
+    this.warning = false,
+    this.onTap,
+  });
 
   final bool running;
+
+  /// 配置卡死（后端 state = warning）。按钮显示黄色「重启」，和顶栏配置
+  /// 标签上的电源按钮同一套语义：点下去是 stop + start，不是普通启动。
+  final bool warning;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final enabled = onTap != null;
-    // Two distinct states: idle = green "立即运行", running = red "停止运行".
-    final background = !enabled
-        ? AppColors.surface2
-        : (running ? AppColors.red : AppColors.teal);
-    final foreground = !enabled
-        ? AppColors.text3
-        : (running
-            ? Colors.white
-            : (AppColors.isDark ? const Color(0xFF04140F) : Colors.white));
+    // Three states: idle = green "启动", running = red "停止",
+    // warning = yellow "重启".
+    final Color background;
+    final Color foreground;
+    if (!enabled) {
+      background = AppColors.surface2;
+      foreground = AppColors.text3;
+    } else if (running) {
+      background = AppColors.red;
+      foreground = Colors.white;
+    } else if (warning) {
+      background = AppColors.yellow;
+      // 黄色底在深浅两套主题下都用近黑字：白字对比只有 3:1 左右。
+      foreground = const Color(0xFF1F1A00);
+    } else {
+      background = AppColors.teal;
+      foreground = AppColors.isDark ? const Color(0xFF04140F) : Colors.white;
+    }
+    final String label;
+    if (running) {
+      label = I18n.homeConfigStopLabel.tr;
+    } else if (warning && enabled) {
+      label = I18n.homeConfigRestartLabel.tr;
+    } else {
+      label = I18n.homeConfigStartLabel.tr;
+    }
+    // 文案已经是「启动配置/停止配置/重启配置」，语义自明，不再挂悬浮提示。
     return InkWell(
       borderRadius: BorderRadius.circular(8),
-      onTap: onTap,
+      onTap: enabled ? onTap : null,
       child: Container(
-        height: 30,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        width: _kConfigActionWidth,
+        height: _kConfigActionHeight,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: background,
@@ -3086,7 +3155,9 @@ class _RunButton extends StatelessWidget {
           ),
         ),
         child: Text(
-          running ? '停止运行' : '立即运行',
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w600,
@@ -3115,8 +3186,8 @@ class _PillButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       onTap: onTap,
       child: Container(
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        width: _kConfigActionWidth,
+        height: _kConfigActionHeight,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: primary ? AppColors.teal : Colors.transparent,
@@ -3127,8 +3198,10 @@ class _PillButton extends StatelessWidget {
         ),
         child: Text(
           label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 12.5,
             fontWeight: primary ? FontWeight.w600 : FontWeight.w400,
             color: primary
                 ? (AppColors.isDark ? const Color(0xFF04140F) : Colors.white)

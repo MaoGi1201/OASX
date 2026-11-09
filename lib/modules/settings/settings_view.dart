@@ -264,9 +264,9 @@ class _SettingsViewState extends State<SettingsView> {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(8),
                   onTap: () => _scrollToSection(index),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOut,
+                  // 选中底色必须瞬时切换：AnimatedContainer 会让旧项在 180ms 内
+                  // 淡出、新项同时淡入，中间出现两项同时高亮的重叠帧。
+                  child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 10,

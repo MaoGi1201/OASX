@@ -126,6 +126,11 @@ List<DashboardDayCount> buildDashboardDayCounts(
   for (final entry in entries) {
     final time = entry.time;
     if (time == null) {
+      // 「运行中」的条目没有 next_run（timeText 是「运行中」），
+      // 时间解析失败的条目也一样。这跟 _filterEntriesForDay 的口径保持一致：
+      // 它们只出现在「今天」页，所以计数也必须落在今天，
+      // 否则只剩一个任务在跑时「今天」会显示 0。
+      counts[0]++;
       continue;
     }
     final day = DateTime(time.year, time.month, time.day);

@@ -69,10 +69,20 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
       final activeTask = widget.controller.activeTaskName.value.trim();
       final dragPayload = widget.controller.activeDragPayload.value;
       final quickScheduleLocked = widget.controller.isBulkQuickScheduling;
+      // 在 Obx 里算好勾选集合：这样 schedule 更新、以及「列表页取消任务」写下的
+      // 本地取消记录（后端 running 槽会残留）都能让勾选状态及时刷新。
+      final enabledTaskNames = widget.controller.enabledTaskNamesFor(
+        widget.scriptModel,
+      );
       return IndexedStack(
         index: activeTask.isEmpty ? 0 : 1,
         children: [
-          _buildTaskList(context, dragPayload, quickScheduleLocked),
+          _buildTaskList(
+            context,
+            dragPayload,
+            quickScheduleLocked,
+            enabledTaskNames,
+          ),
           TaskParameterPanel(
             controller: widget.controller,
             scriptModel: widget.scriptModel,
@@ -87,6 +97,7 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
     BuildContext context,
     ConfigDragPayload? dragPayload,
     bool quickScheduleLocked,
+    Set<String> enabledTaskNames,
   ) {
     return Column(
       children: [
@@ -104,9 +115,6 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
                   child: Text('${I18n.error.tr}: ${snapshot.error}'),
                 );
               }
-              final enabledTaskNames = widget.controller.enabledTaskNamesFor(
-                widget.scriptModel,
-              );
               _syncEnabledOverrides(enabledTaskNames);
               final sections = _sections(
                 snapshot.data ?? const <String, List<String>>{},

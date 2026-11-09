@@ -236,6 +236,13 @@ class I18n {
       homeBulkQuickScheduleTimedOut = 'home_bulk_quick_schedule_timed_out',
       homeOpenTaskParams = 'home_open_task_params',
       homeTaskConfigureAndEnable = 'home_task_configure_and_enable';
+  /// 配置启停按钮（顶栏标签 + 配置卡片胶囊）的文案与提示。
+  static const String homeConfigStartTip = 'home_config_start_tip',
+      homeConfigStopTip = 'home_config_stop_tip',
+      homeConfigRestartTip = 'home_config_restart_tip',
+      homeConfigStartLabel = 'home_config_start_label',
+      homeConfigStopLabel = 'home_config_stop_label',
+      homeConfigRestartLabel = 'home_config_restart_label';
   static const String homeTaskSelectPrompt = 'home_task_select_prompt',
       homeRealtimeLog = 'home_realtime_log',
       homeHistoryLog = 'home_history_log';

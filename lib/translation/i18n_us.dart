@@ -203,6 +203,12 @@ final Map<String, String> _us_ui = {
   I18n.homeQuickWaitAll: 'Wait all now',
   I18n.homeBulkQuickScheduleTimedOut:
       'Bulk quick scheduling is still running; controls were restored',
+  I18n.homeConfigStartTip: 'Start this config',
+  I18n.homeConfigStopTip: 'Stop this config',
+  I18n.homeConfigRestartTip: 'Config is stuck, click to restart',
+  I18n.homeConfigStartLabel: 'Start',
+  I18n.homeConfigStopLabel: 'Stop',
+  I18n.homeConfigRestartLabel: 'Restart',
   I18n.homeOpenTaskParams: 'Edit',
   I18n.homeTaskConfigureAndEnable: 'Configure and enable',
   I18n.homeTaskSelectPrompt: 'Select a task from the task list first',
