@@ -100,15 +100,6 @@ class _ArgumentViewState extends State<ArgumentView> {
     );
   }
 
-  /// 该分支固定使用模拟器，emulator_control 不提供 desktop 选项。
-  List<String> _enumOptions(ArgumentModel model) {
-    final values = model.enumEnum ?? const <String>[];
-    if (model.title != 'emulator_control') {
-      return values;
-    }
-    return values.where((item) => item != 'desktop').toList(growable: false);
-  }
-
   Widget _buildFormSection() {
     final errorText =
         _argsController.fieldError(widget.getGroupName(), model.title);
@@ -142,48 +133,7 @@ class _ArgumentViewState extends State<ArgumentView> {
           onChanged: _scheduleIntegerChange,
           enabled: !isLocked,
         ),
-      'enum' => DropdownButtonFormField<String>(
-          initialValue: model.value.toString(),
-          isExpanded: true,
-          isDense: true,
-          menuMaxHeight: Get.height * 0.5,
-          borderRadius: BorderRadius.circular(10),
-          dropdownColor: AppColors.panel,
-          icon: Icon(
-            Icons.keyboard_arrow_down_rounded,
-            size: 18,
-            color: AppColors.text3,
-          ),
-          style: TextStyle(fontSize: 13, color: AppColors.text),
-          decoration: InputDecoration(errorText: errorText),
-          items: _enumOptions(model)
-              .map<DropdownMenuItem<String>>(
-                (e) => DropdownMenuItem(
-                  value: e.toString(),
-                  child: Text(
-                    e.toString().tr,
-                    style: TextStyle(fontSize: 13, color: AppColors.text),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              )
-              .toList(),
-          selectedItemBuilder: (context) => _enumOptions(model)
-              .map<Widget>(
-                (e) => Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    e.toString().tr,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13, color: AppColors.text),
-                  ),
-                ),
-              )
-              .toList(),
-          onChanged: isLocked ? null : onEnumChanged,
-        ),
+      'enum' => _buildEnumField(errorText: errorText, enabled: !isLocked),
       'date_time' => _buildPicker(
           DateTimePicker(value: model.value, onChange: onDateTimeChanged),
           errorText,
@@ -205,6 +155,71 @@ class _ArgumentViewState extends State<ArgumentView> {
       _ => Text(model.value.toString()),
     };
     return child;
+  }
+
+  /// 枚举字段：闭合态是一个和其它输入框同款的下拉框，展开后走全局统一的
+  /// [showAppMenu]（Material 的 DropdownButton 展开的是自己的 48px 通栏列表）。
+  ///
+  /// 这里用 `Builder` 拿字段**自己**的 context：直接用 State 的 `context` 会锚到
+  /// 整行（横屏时还包含左边的标题），菜单会贴着对话框左边缘展开、跟输入框错位。
+  Widget _buildEnumField({required String? errorText, required bool enabled}) {
+    return Builder(
+      builder: (fieldContext) => InputDecorator(
+        decoration: InputDecoration(errorText: errorText),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: enabled ? () => _openEnumMenu(fieldContext) : null,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  model.value.toString().tr,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, color: AppColors.text),
+                ),
+              ),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: AppColors.text3,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 该分支固定使用模拟器，emulator_control 不提供 desktop 选项。
+  List<String> _enumOptions() {
+    final values = model.enumEnum ?? const <String>[];
+    if (model.title != 'emulator_control') {
+      return values;
+    }
+    return values.where((item) => item != 'desktop').toList(growable: false);
+  }
+
+  Future<void> _openEnumMenu(BuildContext fieldContext) async {
+    final values = _enumOptions();
+    if (values.isEmpty) {
+      return;
+    }
+    final picked = await showAppMenu<String>(
+      fieldContext,
+      options: [
+        for (final value in values)
+          AppMenuOption(value: value, label: value.tr),
+      ],
+      selected: model.value.toString(),
+      maxVisibleItems: 10,
+      // 菜单与输入框同宽、左缘对齐，读起来像一个原生 select。
+      anchor: AppMenuAnchor.start,
+      matchAnchorWidth: true,
+    );
+    if (picked != null) {
+      onEnumChanged(picked);
+    }
   }
 
   Widget _buildTextField({

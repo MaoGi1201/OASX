@@ -133,15 +133,6 @@ extension ApiClientLogsX on ApiClient {
         .toString();
   }
 
-  Options _noCacheOptions({ResponseType? responseType}) {
-    final cacheOptions = _cacheOptions.copyWith(policy: CachePolicy.noCache);
-    return Options(
-      extra: cacheOptions.toExtra(),
-      headers: const {'Cache-Control': 'no-cache', 'Pragma': 'no-cache'},
-      responseType: responseType,
-    );
-  }
-
   Uri _baseUri() {
     final normalized = address.trim().isEmpty
         ? ApiClient._defaultAddress

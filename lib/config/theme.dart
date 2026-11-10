@@ -2,6 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:oasx/config/app_colors.dart';
+import 'package:oasx/config/app_metrics.dart';
+import 'package:oasx/modules/common/widgets/app_popup_menu.dart';
+
+/// 全局界面字体族。
+///
+/// `OasSans` 在 `pubspec.yaml` 里注册，实际文件是 Nunito 的四个静态字重
+/// （400/500/600/700）。Nunito 只有拉丁与数字字形，汉字/日文由 [kAppHanFamily]
+/// 兜底，再往后的生僻字才落到系统字体（Windows → Microsoft YaHei）。
+/// 所以同一个 `TextStyle` 里「数字圆润、汉字也是圆的」是预期效果。
+const String kAppFontFamily = 'OasSans';
+
+/// 汉字与日文字体族，实际文件是「思源柔黑 CN」的 400/500 两个字重
+/// （子集化后每个约 3.1MB，见 `pubspec.yaml` 的注释）。
+///
+/// 它是思源黑体派生的圆体：横竖末端有一圈小圆角，字面比雅黑略宽一点，
+/// 简体与日文假名/常用汉字都在同一套字形里，所以中英混排不会串味。
+const String kAppHanFamily = 'OasHan';
+
+/// 汉字字体始终排在回退链最前面，其余系统字体继续兜住子集外的生僻字。
+const List<String> _kHanFallbackPrefix = <String>[kAppHanFamily];
 
 const List<String> _webChineseFontFallback = <String>[
   'PingFang SC',
@@ -46,6 +66,32 @@ const Map<String, Color> colorSeedMap = {
 ThemeData lightTheme = _buildTheme(Brightness.light);
 ThemeData darkTheme = _buildTheme(Brightness.dark);
 
+/// Every explicit `TextStyle` in the theme must carry the family itself.
+///
+/// `dialogTheme.titleTextStyle`, `inputDecorationTheme.hintStyle`,
+/// `popupMenuTheme.textStyle` … all **replace** the text theme instead of
+/// merging into it, so a style that omits `fontFamily` silently falls back to
+/// the platform default and that one string ends up in a different typeface
+/// than everything around it.
+TextStyle _style({
+  required double fontSize,
+  double? height,
+  FontWeight? fontWeight,
+  Color? color,
+}) {
+  return TextStyle(
+    fontFamily: kAppFontFamily,
+    fontFamilyFallback: <String>[
+      ..._kHanFallbackPrefix,
+      ...SystemChineseFont.fontFamilyFallback,
+    ],
+    fontSize: fontSize,
+    height: height,
+    fontWeight: fontWeight,
+    color: color,
+  );
+}
+
 /// Builds the app theme from [AppColors] so every Material component
 /// (dialogs, cards, inputs, menus, tooltips) shares one look.
 ThemeData _buildTheme(Brightness brightness) {
@@ -54,7 +100,7 @@ ThemeData _buildTheme(Brightness brightness) {
   final text2 = AppColors.text2For(brightness);
   final border = AppColors.borderFor(brightness);
   final surface2 = AppColors.surface2For(brightness);
-  final radius = BorderRadius.circular(10);
+  final radius = BorderRadius.circular(AppRadius.input);
 
   final scheme = ColorScheme.fromSeed(
     seedColor: AppColors.seed,
@@ -78,6 +124,8 @@ ThemeData _buildTheme(Brightness brightness) {
     useMaterial3: true,
     brightness: brightness,
     colorScheme: scheme,
+    // 兜底：任何绕过 textTheme 取默认样式的组件（Typography 派生样式）也用同一族。
+    fontFamily: kAppFontFamily,
     textTheme: _buildTextTheme(brightness),
     scaffoldBackgroundColor: AppColors.bgFor(brightness),
     canvasColor: AppColors.panelFor(brightness),
@@ -94,15 +142,15 @@ ThemeData _buildTheme(Brightness brightness) {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.dialog),
         side: BorderSide(color: border),
       ),
-      titleTextStyle: TextStyle(
+      titleTextStyle: _style(
         fontSize: 15,
         fontWeight: FontWeight.w600,
         color: text,
       ),
-      contentTextStyle: TextStyle(fontSize: 13, color: text2),
+      contentTextStyle: _style(fontSize: 13, color: text2),
       insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
     ),
     cardTheme: CardThemeData(
@@ -111,7 +159,7 @@ ThemeData _buildTheme(Brightness brightness) {
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
         side: BorderSide(color: border),
       ),
     ),
@@ -120,8 +168,8 @@ ThemeData _buildTheme(Brightness brightness) {
       filled: true,
       fillColor: surface2,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      hintStyle: TextStyle(fontSize: 13, color: AppColors.text3For(brightness)),
-      labelStyle: TextStyle(fontSize: 13, color: text2),
+      hintStyle: _style(fontSize: 13, color: AppColors.text3For(brightness)),
+      labelStyle: _style(fontSize: 13, color: text2),
       border: OutlineInputBorder(
         borderRadius: radius,
         borderSide: BorderSide(color: border),
@@ -139,8 +187,8 @@ ThemeData _buildTheme(Brightness brightness) {
       style: FilledButton.styleFrom(
         minimumSize: const Size(0, 34),
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
-        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
+        textStyle: _style(fontSize: 13, fontWeight: FontWeight.w500),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -149,8 +197,8 @@ ThemeData _buildTheme(Brightness brightness) {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         foregroundColor: text2,
         side: BorderSide(color: border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
-        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
+        textStyle: _style(fontSize: 13, fontWeight: FontWeight.w500),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
@@ -158,8 +206,8 @@ ThemeData _buildTheme(Brightness brightness) {
         minimumSize: const Size(0, 32),
         padding: const EdgeInsets.symmetric(horizontal: 12),
         foregroundColor: teal,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
+        textStyle: _style(fontSize: 13, fontWeight: FontWeight.w500),
       ),
     ),
     iconButtonTheme: IconButtonThemeData(
@@ -173,25 +221,28 @@ ThemeData _buildTheme(Brightness brightness) {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.menu),
         side: BorderSide(color: border),
       ),
-      textStyle: TextStyle(fontSize: 13, color: text),
+      // 与 app_popup_menu.dart 的 kAppMenuInset 对应：让菜单行像卡片里的圆角条目，
+      // 而不是贴着面板边缘的通栏矩形。
+      menuPadding: const EdgeInsets.all(kAppMenuInset),
+      textStyle: _style(fontSize: 13, color: text),
     ),
     tooltipTheme: TooltipThemeData(
       decoration: BoxDecoration(
         color: surface2,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadius.tooltip),
         border: Border.all(color: border),
       ),
-      textStyle: TextStyle(fontSize: 12, color: text),
+      textStyle: _style(fontSize: 12, color: text),
     ),
     dividerTheme: DividerThemeData(color: border, thickness: 1, space: 1),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: AppColors.surface3For(brightness),
-      contentTextStyle: TextStyle(fontSize: 13, color: text),
+      contentTextStyle: _style(fontSize: 13, color: text),
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.menu)),
     ),
     progressIndicatorTheme: ProgressIndicatorThemeData(color: teal),
     // Material 3 默认用 colorScheme.primary/onPrimary 组合，深色下拇指会接近黑色，
@@ -240,23 +291,84 @@ ThemeData _buildTheme(Brightness brightness) {
 }
 
 TextTheme _buildTextTheme(Brightness brightness) {
-  const baseTheme = TextTheme(
-    bodyLarge: TextStyle(),
-    bodyMedium: TextStyle(),
-    bodySmall: TextStyle(),
-    labelLarge: TextStyle(),
-    labelMedium: TextStyle(),
-    labelSmall: TextStyle(),
-    titleLarge: TextStyle(),
-    titleMedium: TextStyle(),
-    titleSmall: TextStyle(),
+  // 六档字号：16 / 15 / 13 / 12 / 11 / 10。
+  //
+  // 这里以前是九个空 `TextStyle()`：没有 fontSize 也没有 color，于是凡是没
+  // 显式写样式的地方都会落到 Flutter 默认的 14px，各组件只能自己发明字号
+  // （全仓一度出现 15 种取值，同屏相邻文字就差半级）。现在先把基线定下来，
+  // 显式 fontSize 再逐步往这几档上收。
+  final text = AppColors.textFor(brightness);
+  final text2 = AppColors.text2For(brightness);
+  final text3 = AppColors.text3For(brightness);
+  final baseTheme = TextTheme(
+    // 16 —— 对话框 / 页面主标题
+    titleLarge: _style(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+      color: text,
+    ),
+    // 15 —— 区块标题
+    titleMedium: _style(
+      fontSize: 15,
+      fontWeight: FontWeight.w600,
+      color: text,
+    ),
+    // 13 —— 卡片标题 / 强调
+    titleSmall: _style(
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+      color: text,
+    ),
+    // 13 —— 正文
+    bodyLarge: _style(fontSize: 13, color: text),
+    bodyMedium: _style(fontSize: 13, color: text),
+    // 12 —— 次要说明
+    bodySmall: _style(fontSize: 12, color: text2),
+    // 13 —— 按钮文字
+    labelLarge: _style(
+      fontSize: 13,
+      fontWeight: FontWeight.w500,
+      color: text,
+    ),
+    // 11 —— 小标签
+    labelMedium: _style(
+      fontSize: 11,
+      fontWeight: FontWeight.w500,
+      color: text2,
+    ),
+    // 10 —— 角标 / 极次要
+    labelSmall: _style(fontSize: 10, color: text3),
   );
-  if (kIsWeb) {
-    return _applyFontFallback(baseTheme, _webChineseFontFallback);
-  }
-  return baseTheme.apply(fontFamily: 'LatoLato').useSystemChineseFont(
-        brightness,
+  final withFamily = baseTheme.apply(fontFamily: kAppFontFamily);
+  final withChinese = kIsWeb
+      ? _applyFontFallback(withFamily, _webChineseFontFallback)
+      : withFamily.useSystemChineseFont(brightness);
+  return _prependHanFallback(withChinese);
+}
+
+/// 把 [kAppHanFamily] 插到每个样式的回退链首位，其余系统字体顺延。
+///
+/// 不能直接用 `copyWith(fontFamilyFallback: [...prefix])` 覆盖：那会把
+/// `useSystemChineseFont()` 追加的 PingFang / 雅黑 / sans-serif 一并丢掉，
+/// 子集外的生僻字就会变成方框。
+TextTheme _prependHanFallback(TextTheme textTheme) {
+  TextStyle? prepend(TextStyle? style) => style?.copyWith(
+        fontFamilyFallback: <String>[
+          ..._kHanFallbackPrefix,
+          ...?style.fontFamilyFallback,
+        ],
       );
+  return textTheme.copyWith(
+    bodyLarge: prepend(textTheme.bodyLarge),
+    bodyMedium: prepend(textTheme.bodyMedium),
+    bodySmall: prepend(textTheme.bodySmall),
+    labelLarge: prepend(textTheme.labelLarge),
+    labelMedium: prepend(textTheme.labelMedium),
+    labelSmall: prepend(textTheme.labelSmall),
+    titleLarge: prepend(textTheme.titleLarge),
+    titleMedium: prepend(textTheme.titleMedium),
+    titleSmall: prepend(textTheme.titleSmall),
+  );
 }
 
 TextTheme _applyFontFallback(TextTheme textTheme, List<String> fallback) {

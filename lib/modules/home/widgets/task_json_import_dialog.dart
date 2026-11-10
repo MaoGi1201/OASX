@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:oasx/config/app_metrics.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -121,7 +122,7 @@ class _TaskJsonImportDialogState extends State<TaskJsonImportDialog> {
         onDropEnded: (_) => _setDragging(false),
         onPerformDrop: _onPerformDrop,
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadius.menu),
           onTap: _pickFile,
           child: DecoratedBox(
             decoration: BoxDecoration(
@@ -135,7 +136,7 @@ class _TaskJsonImportDialogState extends State<TaskJsonImportDialog> {
                     ? theme.colorScheme.primary
                     : theme.colorScheme.outlineVariant,
               ),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(AppRadius.menu),
             ),
             child: Center(
               child: Padding(

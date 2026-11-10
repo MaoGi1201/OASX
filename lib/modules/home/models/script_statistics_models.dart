@@ -3,6 +3,7 @@ import 'dart:isolate';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:oasx/config/app_colors.dart';
 
 /// Stream connection states used by the statistics panel.
 enum ScriptStatisticsConnectionState {
@@ -354,6 +355,126 @@ class ScriptStatisticsDay {
   }
 }
 
+/// One hour slot used by the statistics heat track.
+class StatisticsHourBucket {
+  /// Creates an hour bucket.
+  const StatisticsHourBucket({
+    required this.hour,
+    required this.seconds,
+    required this.comparisonSeconds,
+  });
+
+  /// Hour of the day, 0-23.
+  final int hour;
+
+  /// Seconds the script ran inside this hour on the selected day.
+  final double seconds;
+
+  /// Seconds the script ran inside this hour on the comparison day.
+  final double comparisonSeconds;
+
+  /// Whether the script ran inside this hour.
+  bool get hasRun => seconds > 0;
+}
+
+/// First run start and last run end of one day.
+class StatisticsActiveSpan {
+  /// Creates an active span.
+  const StatisticsActiveSpan({this.start, this.end});
+
+  /// First run start of the day.
+  final DateTime? start;
+
+  /// Last run end of the day.
+  final DateTime? end;
+
+  /// Wall-clock seconds between [start] and [end].
+  double get seconds {
+    final from = start;
+    final to = end;
+    if (from == null || to == null) {
+      return 0;
+    }
+    return to.difference(from).inSeconds.toDouble();
+  }
+}
+
+/// Returns the seconds of one run that fall inside [hour] of its own date.
+///
+/// Runs are clipped rather than assigned wholesale: a 90-minute run that starts
+/// at 09:40 contributes 20 minutes to hour 09 and 70 to hour 10.
+double statisticsRunSecondsInHour(ScriptTaskRunRecord run, int hour) {
+  final start = run.startTime;
+  final end = run.endTime;
+  if (start == null || end == null) {
+    return 0;
+  }
+  final hourStart = DateTime(start.year, start.month, start.day, hour);
+  final hourEnd = hourStart.add(const Duration(hours: 1));
+  final from = start.isAfter(hourStart) ? start : hourStart;
+  final to = end.isBefore(hourEnd) ? end : hourEnd;
+  final seconds = to.difference(from).inSeconds;
+  return seconds > 0 ? seconds.toDouble() : 0;
+}
+
+/// Returns whether one run overlaps [hour] of its own date.
+bool statisticsRunOverlapsHour(ScriptTaskRunRecord run, int hour) {
+  return statisticsRunSecondsInHour(run, hour) > 0;
+}
+
+/// Builds the 24 hourly buckets for [day], with an optional comparison day.
+List<StatisticsHourBucket> buildStatisticsHourBuckets(
+  ScriptStatisticsDay day, {
+  ScriptStatisticsDay? comparison,
+}) {
+  final today = List<double>.filled(24, 0);
+  final other = List<double>.filled(24, 0);
+  _accumulateDayHours(day, today);
+  if (comparison != null) {
+    _accumulateDayHours(comparison, other);
+  }
+  return List<StatisticsHourBucket>.unmodifiable(
+    List<StatisticsHourBucket>.generate(
+      24,
+      (hour) => StatisticsHourBucket(
+        hour: hour,
+        seconds: today[hour],
+        comparisonSeconds: other[hour],
+      ),
+    ),
+  );
+}
+
+/// Resolves the first start and last end of all runs of one day.
+StatisticsActiveSpan statisticsActiveSpanOf(ScriptStatisticsDay day) {
+  DateTime? firstStart;
+  DateTime? lastEnd;
+  for (final entry in day.runEntries) {
+    final start = entry.value.startTime;
+    final end = entry.value.endTime;
+    if (start != null && (firstStart == null || start.isBefore(firstStart))) {
+      firstStart = start;
+    }
+    if (end != null && (lastEnd == null || end.isAfter(lastEnd))) {
+      lastEnd = end;
+    }
+  }
+  return StatisticsActiveSpan(start: firstStart, end: lastEnd);
+}
+
+/// Adds the run seconds of one day into the provided hour slots.
+void _accumulateDayHours(ScriptStatisticsDay day, List<double> target) {
+  for (final entry in day.runEntries) {
+    // 跨天运行只统计开始那一天的 24 格：日志按天切分，超出部分没有格子可放。
+    for (var hour = 0; hour < 24; hour++) {
+      final seconds = statisticsRunSecondsInHour(entry.value, hour);
+      if (seconds > 0) {
+        target[hour] += seconds;
+      }
+    }
+  }
+}
+
 /// Single update payload carried by today SSE events.
 class ScriptStatisticsUpdate {
   /// Creates a day update wrapper.
@@ -485,14 +606,7 @@ bool isStatisticsDateToday(String dateKey) {
 
 /// Returns a stable color for a task name.
 Color statisticsTaskColor(String taskName) {
-  const palette = <Color>[
-    Color(0xFF2563EB),
-    Color(0xFFDC2626),
-    Color(0xFF16A34A),
-    Color(0xFFD97706),
-    Color(0xFF7C3AED),
-    Color(0xFF0891B2),
-  ];
+  const palette = AppColors.chartPalette;
   return palette[taskName.hashCode.abs() % palette.length];
 }
 

@@ -20,6 +20,13 @@ class ArgsController extends GetxController {
   final Map<String, dynamic> _originalValues = {};
   String _loadedConfig = '';
   String _loadedTask = '';
+
+  /// 每次 [loadGroups] 领一个版本号。
+  ///
+  /// 连点两个任务时，A 的 `/args` 回包可能晚于 B 到达。没有版本校验就会把
+  /// A 的参数写进「当前=B」的表单，紧接着 `saveDraftChanges` 用 `_loadedTask`
+  /// 落盘，就把 A 的值写到了 B 的配置里。
+  int _loadRevision = 0;
   List<String> _scopeScripts = const [];
   SaveArgumentCallback? _saveArgumentOverride;
 
@@ -38,15 +45,18 @@ class ArgsController extends GetxController {
     loadModel(jsonDecode(json));
   }
 
-  Future<void> loadGroups({
+  /// 加载某个任务的参数模型。
+  ///
+  /// 返回 `false` 只代表「这次请求失败」，调用方可以据此提示错误；
+  /// 被更新的加载取代时返回 `true`（不是错误，不要弹红条）。
+  Future<bool> loadGroups({
     String config = '',
     String task = '',
     bool stagingMode = false,
     List<String> scopeScripts = const [],
     SaveArgumentCallback? saveArgumentOverride,
   }) async {
-    _loadedConfig = config;
-    _loadedTask = task;
+    final revision = ++_loadRevision;
     updateScopeScripts(scopeScripts, config: config);
     _saveArgumentOverride = saveArgumentOverride;
     isDraftMode.value = stagingMode;
@@ -54,9 +64,22 @@ class ArgsController extends GetxController {
     fieldErrors.clear();
     _originalValues.clear();
 
+    final json = await ApiClient().getScriptTask(config, task);
+    // 期间又切了任务：这次回包作废，别覆盖更新的那次加载结果。
+    if (revision != _loadRevision) {
+      return true;
+    }
+    // 请求失败时保留表单现状，不能当成「这个任务没有参数」把界面清空。
+    if (json == null) {
+      return false;
+    }
+    // _loaded* 只在数据真的落地时才更新，保证「表单里看到的」和
+    // 「保存时写回去的」始终是同一个配置 + 任务。
+    _loadedConfig = config;
+    _loadedTask = task;
+
     final groupsMap = <String, GroupsModel>{};
     final names = <String>[];
-    final json = await ApiClient().getScriptTask(config, task);
     for (final entry in json.entries) {
       names.add(entry.key);
       final arguments = <ArgumentModel>[];
@@ -69,9 +92,7 @@ class ArgsController extends GetxController {
     groupsData.value = groupsMap;
     groupsName.value = names;
     _snapshotOriginalValues();
-    if (!stagingMode || _scopeScripts.length <= 1) {
-      return;
-    }
+    return true;
   }
 
   Future<dynamic> getArgValue(

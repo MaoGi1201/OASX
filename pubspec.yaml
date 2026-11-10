@@ -136,10 +136,33 @@ flutter:
   # "family" key with the font family name, and a "fonts" key with a
   # list giving the asset and other descriptors for the font. For
   # example:
+  # 界面主字体：Nunito（圆润几何无衬线，拉丁字母与数字明显更柔和）。
+  # 它不含中日韩字形，汉字/日文由下面的 OasHan 兜底（见 theme.dart 的 fontFamilyFallback）。
+  # 四个静态字重各自成文件，避免依赖可变字体的 wght 轴 ——
+  # 大量组件直接写 `TextStyle(fontWeight: ...)`，不走 fontVariations。
   fonts:
-    - family: LatoLato
+    - family: OasSans
       fonts:
-        - asset: assets/Lato-Regular.ttf
+        - asset: assets/fonts/Nunito-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Nunito-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Nunito-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Nunito-Bold.ttf
+          weight: 700
+
+    # 汉字/日文字体：思源柔黑 CN（Resource Han Rounded，SIL OFL 1.1，
+    # 由思源黑体派生、笔画末端做圆角处理）。已子集化到
+    # GB2312 6763 字 + 假名 + 拉丁/标点/箭头符号（约 8900 字），
+    # 单文件 3.1MB；子集外的生僻字会自动回退到系统字体（Windows → 微软雅黑）。
+    # 族名已改成 OasHan（OFL 保留字体名要求：修改/子集化后必须改名）。
+    - family: OasHan
+      fonts:
+        - asset: assets/fonts/OasHan-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/OasHan-Medium.ttf
+          weight: 500
 
   # fonts:
   #   - family: Schyler

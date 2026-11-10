@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:oasx/config/app_metrics.dart';
 import 'package:get/get.dart';
 import 'package:styled_widget/styled_widget.dart';
 
@@ -116,7 +117,7 @@ class LanguageToggle extends StatelessWidget {
         onPressed: (index) {
           localeService.switchLanguage(index == 0 ? 'zh-CN' : 'en-US');
         },
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.menu),
         children: [
           Text(I18n.zhCn.tr).paddingSymmetric(horizontal: 10),
           Text(I18n.enUs.tr).paddingSymmetric(horizontal: 10),

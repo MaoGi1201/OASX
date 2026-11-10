@@ -2,21 +2,33 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:oasx/config/app_colors.dart';
+import 'package:oasx/config/app_metrics.dart';
 import 'package:oasx/modules/home/models/script_statistics_models.dart';
 import 'package:oasx/modules/home/widgets/statistics_history_axis_layout.dart';
 import 'package:oasx/modules/home/widgets/statistics_formatters.dart';
 import 'package:oasx/translation/i18n_content.dart';
 
-const _kHistoryAxisLeadingWidth = 116.0;
-const _kHistoryTaskLabelWidth = 108.0;
+const _kHistoryLeadWidth = 3.0;
+const _kHistoryLeadGap = 5.0;
+const _kHistoryTaskLabelWidth = 90.0;
 const _kHistoryTaskLabelSpacing = 8.0;
-const _kHistoryAxisSpacing = 8.0;
-const _kHistoryRowHeight = 44.0;
-const _kHistoryRowSpacing = 10.0;
-const _kHistoryMaxVisibleRows = 5;
+const _kHistoryAxisSpacing = 6.0;
+const _kHistoryAxisHeaderHeight = 26.0;
+const _kHistoryAxisLeadingWidth =
+    _kHistoryLeadWidth + _kHistoryLeadGap + _kHistoryTaskLabelWidth + _kHistoryTaskLabelSpacing;
+const _kHistoryRowHeight = 34.0;
+const _kHistoryRowSpacing = 4.0;
+const _kCollapsedTaskCount = 9;
+const _kHistoryToggleHeight = 26.0;
 
 /// Task comparison chart with a fixed top axis.
-class ScriptStatisticsHistoryChart extends StatelessWidget {
+///
+/// Only the first [_kCollapsedTaskCount] rows are drawn by default and the rest
+/// fold behind one toggle: a 34px row list inside a narrow column is awkward to
+/// scroll, and the tasks below the fold are usually the ones with almost no
+/// runtime anyway.
+class ScriptStatisticsHistoryChart extends StatefulWidget {
   /// Creates a task comparison chart.
   const ScriptStatisticsHistoryChart({
     super.key,
@@ -51,55 +63,82 @@ class ScriptStatisticsHistoryChart extends StatelessWidget {
   final bool highlightRealtimeTask;
 
   @override
+  State<ScriptStatisticsHistoryChart> createState() =>
+      _ScriptStatisticsHistoryChartState();
+}
+
+class _ScriptStatisticsHistoryChartState
+    extends State<ScriptStatisticsHistoryChart> {
+  /// Whether rows beyond the collapsed count are visible.
+  bool _expanded = false;
+
+  @override
+  void didUpdateWidget(covariant ScriptStatisticsHistoryChart oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 焦点任务被折叠起来时自动展开，否则点明细里选中的任务在图上找不到高亮。
+    if (oldWidget.focusedTaskName != widget.focusedTaskName) {
+      final index = widget.entries.indexWhere(
+        (entry) => entry.key == widget.focusedTaskName,
+      );
+      if (index >= _kCollapsedTaskCount) {
+        _expanded = true;
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final entries = widget.entries;
     if (entries.isEmpty) {
       return const SizedBox.shrink();
     }
+    // 轴范围按全部任务计算，折叠/展开时柱长不跳动。
     final maxValue = entries.fold<double>(
       0,
       (current, entry) =>
-          math.max(current, entry.value.metricValueFor(metric)).toDouble(),
+          math.max(current, entry.value.metricValueFor(widget.metric)).toDouble(),
     );
     final interval = _resolveInterval(maxValue);
     final axisMax = _resolveAxisMax(maxValue, interval);
     final ticks = _buildTicks(axisMax, interval);
+    final visibleEntries = _expanded
+        ? entries
+        : entries.take(_kCollapsedTaskCount).toList(growable: false);
+    final hiddenCount = entries.length - visibleEntries.length;
     // 图表更新频繁，单独隔离重绘，避免连带整页重排。
     return RepaintBoundary(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _HistoryAxisHeader(
-          ticks: ticks,
-          axisMax: axisMax,
-          metric: metric,
-        ),
-        const SizedBox(height: _kHistoryAxisSpacing),
-        SizedBox(
-          height: _resolveViewportHeight(),
-          child: ListView.separated(
-            primary: false,
-            padding: EdgeInsets.zero,
-            physics: entries.length > _kHistoryMaxVisibleRows
-                ? const ClampingScrollPhysics()
-                : const NeverScrollableScrollPhysics(),
-            itemCount: entries.length,
-            separatorBuilder: (_, __) =>
-                const SizedBox(height: _kHistoryRowSpacing),
-            itemBuilder: (context, index) {
-              final entry = entries[index];
-              return _HistoryBarRow(
-                entry: entry,
-                metric: metric,
-                axisMax: axisMax,
-                focused: entry.key == focusedTaskName,
-                flashing:
-                    highlightRealtimeTask && flashingTaskName == entry.key,
-                flashToken: flashToken,
-                onTap: () => onSelectTask(entry.key),
-              );
-            },
+            ticks: ticks,
+            axisMax: axisMax,
+            metric: widget.metric,
           ),
-          ),
+          const SizedBox(height: _kHistoryAxisSpacing),
+          for (var index = 0; index < visibleEntries.length; index++) ...[
+            if (index > 0) const SizedBox(height: _kHistoryRowSpacing),
+            _HistoryBarRow(
+              entry: visibleEntries[index],
+              metric: widget.metric,
+              axisMax: axisMax,
+              focused: visibleEntries[index].key == widget.focusedTaskName,
+              flashing: widget.highlightRealtimeTask &&
+                  widget.flashingTaskName == visibleEntries[index].key,
+              flashToken: widget.flashToken,
+              onTap: () => widget.onSelectTask(visibleEntries[index].key),
+            ),
+          ],
+          if (hiddenCount > 0 || _expanded)
+            _HistoryToggle(
+              label: _expanded
+                  ? I18n.homeStatsCollapse.tr
+                  : I18n.homeStatsExpandMoreTasks.tr.replaceFirst(
+                      '%s',
+                      '$hiddenCount',
+                    ),
+              onTap: () => setState(() => _expanded = !_expanded),
+            ),
         ],
       ),
     );
@@ -128,7 +167,7 @@ class ScriptStatisticsHistoryChart extends StatelessWidget {
 
   /// Resolves a stable axis interval for the current metric family.
   double _resolveInterval(double maxValue) {
-    if (statisticsMetricUsesDuration(metric)) {
+    if (statisticsMetricUsesDuration(widget.metric)) {
       if (maxValue <= 600) {
         return 120.0;
       }
@@ -151,19 +190,37 @@ class ScriptStatisticsHistoryChart extends StatelessWidget {
     }
     return math.max((maxValue / 5).ceilToDouble(), 1.0).toDouble();
   }
+}
 
-  /// Resolves the visible viewport height from the number of visible rows.
-  double _resolveViewportHeight() {
-    return _resolveRowsHeight(
-        math.min(entries.length, _kHistoryMaxVisibleRows));
-  }
+class _HistoryToggle extends StatelessWidget {
+  const _HistoryToggle({required this.label, required this.onTap});
 
-  /// Resolves the row stack height for the provided row count.
-  double _resolveRowsHeight(int rowCount) {
-    if (rowCount <= 0) {
-      return 0;
-    }
-    return rowCount * _kHistoryRowHeight + (rowCount - 1) * _kHistoryRowSpacing;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(AppRadius.button),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.button),
+        onTap: onTap,
+        child: SizedBox(
+          height: _kHistoryToggleHeight,
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.teal,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -199,7 +256,7 @@ class _HistoryAxisHeader extends StatelessWidget {
                 textDirection: Directionality.of(context),
               );
               return SizedBox(
-                height: 34,
+                height: _kHistoryAxisHeaderHeight,
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -269,15 +326,31 @@ class _HistoryBarRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         SizedBox(
+          width: _kHistoryLeadWidth,
+          child: focused
+              ? Container(
+                  width: 2,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                )
+              : null,
+        ),
+        const SizedBox(width: _kHistoryLeadGap),
+        SizedBox(
           width: _kHistoryTaskLabelWidth,
           child: Text(
             entry.key.tr,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: focused ? color : null,
-                  fontWeight: focused ? FontWeight.w700 : FontWeight.w500,
-                ),
+            style: TextStyle(
+              fontSize: 10.5,
+              height: 1.15,
+              color: focused ? color : AppColors.text2,
+              fontWeight: focused ? FontWeight.w700 : FontWeight.w500,
+            ),
           ),
         ),
         const SizedBox(width: _kHistoryTaskLabelSpacing),
@@ -293,7 +366,7 @@ class _HistoryBarRow extends StatelessWidget {
                 verticalOffset: 20,
                 message: _tooltipText(),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                   onTap: onTap,
                   child: SizedBox(
                     height: _kHistoryRowHeight,
@@ -301,7 +374,7 @@ class _HistoryBarRow extends StatelessWidget {
                       alignment: Alignment.centerLeft,
                       children: [
                         Container(
-                          height: 20,
+                          height: 14,
                           decoration: BoxDecoration(
                             color: scheme.surfaceContainerHighest
                                 .withValues(alpha: 0.5),
@@ -312,7 +385,7 @@ class _HistoryBarRow extends StatelessWidget {
                         // 会同时启动 N 条动画（30 天 = 30 条），是掉帧的主要来源。
                         Container(
                           width: barWidth,
-                          height: focused ? 28 : 24,
+                          height: focused ? 20 : 16,
                           decoration: BoxDecoration(
                             color:
                                 color.withValues(alpha: focused ? 0.92 : 0.76),
@@ -407,13 +480,14 @@ class _HistoryValueBadge extends StatelessWidget {
                 : const [],
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             child: Text(
               label,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: pulse > 0.02 ? scheme.onSurface : null,
-                  ),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: pulse > 0.02 ? scheme.onSurface : AppColors.text2,
+              ),
             ),
           ),
         );

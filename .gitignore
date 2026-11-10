@@ -57,3 +57,10 @@ CLAUDE.md
 .claude/
 openspec/
 .codegraph/
+
+# Local build output (script/*.py 打出来的发布包，不入库)
+*.zip
+
+# Local agent workspace / memory notes，不随仓库分发
+.workbuddy/
+.workbuddy-ai/

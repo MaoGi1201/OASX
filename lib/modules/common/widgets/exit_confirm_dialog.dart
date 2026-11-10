@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:oasx/config/app_metrics.dart';
 import 'package:get/get.dart';
 import 'package:oasx/translation/i18n_content.dart';
 
@@ -165,7 +166,7 @@ class _ExitOptionCheckbox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadius.tooltip),
       onTap: () => onChanged(!value),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),

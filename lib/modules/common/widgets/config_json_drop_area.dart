@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:oasx/config/app_metrics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:oasx/translation/i18n_content.dart';
@@ -37,7 +38,7 @@ class _ConfigJsonDropAreaState extends State<ConfigJsonDropArea> {
       onDropEnded: (_) => _setDragging(false),
       onPerformDrop: _onPerformDrop,
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.menu),
         onTap: widget.enabled ? _pickFile : null,
         child: DecoratedBox(
           decoration: _decoration(theme),
@@ -57,7 +58,7 @@ class _ConfigJsonDropAreaState extends State<ConfigJsonDropArea> {
             ? theme.colorScheme.primary
             : theme.colorScheme.outlineVariant,
       ),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppRadius.menu),
     );
   }
 

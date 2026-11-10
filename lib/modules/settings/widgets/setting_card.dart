@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:oasx/config/app_metrics.dart';
 import 'package:oasx/modules/settings/widgets/setting_item.dart';
 
 class SettingCard extends StatelessWidget {
@@ -20,7 +21,7 @@ class SettingCard extends StatelessWidget {
       elevation: 0,
       color: theme.cardColor,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
         side: BorderSide(color: theme.dividerColor),
       ),
       child: Padding(

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:oasx/config/app_colors.dart';
+import 'package:oasx/config/app_metrics.dart';
 import 'package:get/get.dart';
 import 'package:oasx/api/api_client.dart';
 import 'package:oasx/api/config_transfer_models.dart';
+import 'package:oasx/modules/common/widgets/app_popup_menu.dart';
 import 'package:oasx/modules/common/widgets/config_json_drop_area.dart';
 import 'package:oasx/service/script_service.dart';
 import 'package:oasx/translation/i18n_content.dart';
@@ -100,37 +102,58 @@ class _AddConfigDialogBodyState extends State<AddConfigDialogBody> {
   }
 
   Widget _templateDropdown() {
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface2,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedTemplate,
-          menuMaxHeight: 300,
-          isExpanded: true,
-          isDense: true,
-          dropdownColor: AppColors.panel,
-          borderRadius: BorderRadius.circular(10),
-          icon: Icon(
-            Icons.keyboard_arrow_down_rounded,
-            size: 18,
-            color: AppColors.text3,
+    // Builder 放在 Container 外面：锚点要用整个输入框（含 12px 内边距），
+    // 这样菜单左缘和输入框边框对齐，而不是向右缩进 12px。
+    return Builder(
+      builder: (context) => Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface2,
+          borderRadius: BorderRadius.circular(AppRadius.menu),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.menu),
+          onTap: _isSubmitting ? null : () => _openTemplateMenu(context),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _selectedTemplate,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, color: AppColors.text),
+                ),
+              ),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: AppColors.text3,
+              ),
+            ],
           ),
-          style: TextStyle(fontSize: 13, color: AppColors.text),
-          items: widget.configAll
-              .map<DropdownMenuItem<String>>(
-                (e) => DropdownMenuItem(value: e, child: Text(e)),
-              )
-              .toList(),
-          onChanged: _isSubmitting ? null : _setTemplate,
         ),
       ),
     );
+  }
+
+  Future<void> _openTemplateMenu(BuildContext context) async {
+    final picked = await showAppMenu<String>(
+      context,
+      options: [
+        for (final name in widget.configAll)
+          AppMenuOption(value: name, label: name),
+      ],
+      selected: _selectedTemplate,
+      maxVisibleItems: 10,
+      // 模板下拉占满整行，菜单与输入框同宽、左缘对齐。
+      anchor: AppMenuAnchor.start,
+      matchAnchorWidth: true,
+    );
+    if (picked != null) {
+      _setTemplate(picked);
+    }
   }
 
   Widget _confirmContent() {

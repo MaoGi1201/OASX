@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:oasx/config/app_colors.dart';
+import 'package:oasx/config/app_metrics.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 
@@ -249,7 +250,7 @@ class _SettingsViewState extends State<SettingsView> {
         elevation: 0,
         color: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           side: BorderSide(color: Theme.of(context).dividerColor),
         ),
         child: Padding(
@@ -262,7 +263,7 @@ class _SettingsViewState extends State<SettingsView> {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadius.button),
                   onTap: () => _scrollToSection(index),
                   // 选中底色必须瞬时切换：AnimatedContainer 会让旧项在 180ms 内
                   // 淡出、新项同时淡入，中间出现两项同时高亮的重叠帧。
@@ -272,7 +273,7 @@ class _SettingsViewState extends State<SettingsView> {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(9),
+                      borderRadius: BorderRadius.circular(AppRadius.button),
                       color: isSelected
                           ? AppColors.tealDimFor(
                               Theme.of(context).brightness,

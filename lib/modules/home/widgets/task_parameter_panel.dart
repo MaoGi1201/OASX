@@ -23,7 +23,7 @@ class TaskParameterPanel extends StatefulWidget {
 }
 
 class _TaskParameterPanelState extends State<TaskParameterPanel> {
-  Future<void>? _loadFuture;
+  Future<bool>? _loadFuture;
   String _loadKey = '';
   String _loadScopeKey = '';
   String _scriptName = '';

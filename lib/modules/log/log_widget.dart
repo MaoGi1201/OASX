@@ -3,6 +3,7 @@
 import 'package:easy_rich_text/easy_rich_text.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:oasx/config/app_colors.dart';
 import 'package:styled_widget/styled_widget.dart';
 
 import 'log_mixin.dart';

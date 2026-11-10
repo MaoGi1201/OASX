@@ -37,6 +37,15 @@ class HomeStatisticsController extends GetxController {
   /// Task currently focused in the chart.
   final selectedTaskName = ''.obs;
 
+  /// Hour (0-23) currently used to filter the chart, null when disabled.
+  final selectedHour = Rxn<int>();
+
+  /// Previous day snapshot used by the comparison heat track.
+  final comparisonDay = Rxn<ScriptStatisticsDay>();
+
+  /// Whether the comparison day snapshot is loading.
+  final comparisonLoading = false.obs;
+
   /// Metric currently shown by the chart.
   final historyMetric = ScriptStatisticsChartMetric.totalDuration.obs;
 
@@ -85,6 +94,21 @@ class HomeStatisticsController extends GetxController {
   /// Cached chart entries for the last derived state.
   List<MapEntry<String, ScriptTaskStatistics>> _taskEntriesCache = const [];
 
+  /// Cache key for hourly buckets and the active span.
+  String _dayDerivedCacheKey = '';
+
+  /// Cached 24-hour buckets for the selected day.
+  List<StatisticsHourBucket> _hourBucketsCache = const [];
+
+  /// Cached first-start to last-end span of the selected day.
+  double _activeSpanSeconds = 0;
+
+  /// Cached first run start of the selected day.
+  DateTime? _activeSpanStart;
+
+  /// Cached last run end of the selected day.
+  DateTime? _activeSpanEnd;
+
   /// Sequential queue that preserves SSE event ordering during async parsing.
   Future<void> _streamEventQueue = Future<void>.value();
 
@@ -122,6 +146,10 @@ class HomeStatisticsController extends GetxController {
   }
 
   /// Sorted chart entries for the currently selected day.
+  ///
+  /// When an hour filter is active, only tasks with a run overlapping that hour
+  /// remain, and their values are recomputed from those runs so the bars keep
+  /// matching what the heat track says happened.
   List<MapEntry<String, ScriptTaskStatistics>> get historyTaskEntries {
     final currentStatistics = statistics.value;
     if (currentStatistics == null) {
@@ -130,17 +158,24 @@ class HomeStatisticsController extends GetxController {
     final metric = historyMetric.value;
     final sortField = historySortField.value;
     final descending = historySortDescending.value;
+    final hour = selectedHour.value;
     final cacheKey =
-        '${currentStatistics.dateKey}|${currentStatistics.totalRuntimeSeconds}|${metric.name}|${sortField.name}|$descending';
+        '${currentStatistics.dateKey}|${currentStatistics.totalRuntimeSeconds}|${currentStatistics.totalTaskRunCount}|${metric.name}|${sortField.name}|$descending|${hour ?? -1}';
     if (_taskEntriesCacheKey == cacheKey) {
       return _taskEntriesCache;
     }
-    final entries = currentStatistics.tasks.entries.where((entry) {
+    var entries = currentStatistics.tasks.entries.where((entry) {
       if (statisticsMetricUsesBattleFilter(metric)) {
         return entry.value.battleCount > 0;
       }
       return entry.value.runCount > 0;
     }).toList();
+    if (hour != null) {
+      entries = entries
+          .map((entry) => _restrictEntryToHour(entry, hour))
+          .whereType<MapEntry<String, ScriptTaskStatistics>>()
+          .toList();
+    }
     entries.sort((left, right) {
       final compareValue = switch (sortField) {
         ScriptStatisticsChartSortField.data => left.value
@@ -162,6 +197,49 @@ class HomeStatisticsController extends GetxController {
     return _taskEntriesCache;
   }
 
+  /// 24 hourly buckets for the selected day plus the comparison day.
+  List<StatisticsHourBucket> get hourlyBuckets {
+    _ensureDayDerived();
+    return _hourBucketsCache;
+  }
+
+  /// Span from the first run start to the last run end on the selected day.
+  double get activeSpanSeconds {
+    _ensureDayDerived();
+    return _activeSpanSeconds;
+  }
+
+  /// First run start of the selected day, used by the hero caption.
+  DateTime? get activeSpanStart {
+    _ensureDayDerived();
+    return _activeSpanStart;
+  }
+
+  /// Last run end of the selected day, used by the hero caption.
+  DateTime? get activeSpanEnd {
+    _ensureDayDerived();
+    return _activeSpanEnd;
+  }
+
+  /// Whether the comparison track has any data worth drawing.
+  bool get hasComparisonTrack {
+    final day = comparisonDay.value;
+    if (day == null) {
+      return false;
+    }
+    return day.runEntries.isNotEmpty;
+  }
+
+  /// Runtime divided by the active span, null when the day has no run.
+  double? get effectiveRatio {
+    final currentStatistics = statistics.value;
+    final span = activeSpanSeconds;
+    if (currentStatistics == null || span <= 0) {
+      return null;
+    }
+    return (currentStatistics.totalRuntimeSeconds / span).clamp(0.0, 1.0);
+  }
+
   /// Run details for the focused task, sorted from newest to oldest.
   List<ScriptTaskRunRecord> get selectedHistoryDetailRuns {
     final currentStatistics = statistics.value;
@@ -173,6 +251,10 @@ class HomeStatisticsController extends GetxController {
       currentStatistics.tasks[taskName]?.runs ?? const [],
     );
     runs.removeWhere((run) => !run.hasTimeRange);
+    final hour = selectedHour.value;
+    if (hour != null) {
+      runs.removeWhere((run) => !statisticsRunOverlapsHour(run, hour));
+    }
     runs.sort((left, right) {
       final leftTime = left.endTime ?? left.startTime;
       final rightTime = right.endTime ?? right.startTime;
@@ -212,12 +294,31 @@ class HomeStatisticsController extends GetxController {
       return;
     }
     selectedDateKey.value = dateKey;
+    selectedHour.value = null;
     unawaited(_loadSelectedDate(_boundScriptName, dateKey));
   }
 
   /// Updates the focused task in the chart.
   void selectHistoryTask(String taskName) {
     selectedTaskName.value = taskName.trim();
+  }
+
+  /// Toggles the hour filter; tapping the same hour again clears it.
+  void toggleHistoryHour(int hour) {
+    if (hour < 0 || hour > 23) {
+      return;
+    }
+    selectedHour.value = selectedHour.value == hour ? null : hour;
+    _syncSelections();
+  }
+
+  /// Clears the hour filter.
+  void clearHistoryHour() {
+    if (selectedHour.value == null) {
+      return;
+    }
+    selectedHour.value = null;
+    _syncSelections();
   }
 
   /// Updates the chart sort field.
@@ -305,6 +406,7 @@ class HomeStatisticsController extends GetxController {
     lastErrorMessage.value = '';
     if (shouldUseLiveStream) {
       statisticsLoading.value = false;
+      unawaited(_loadComparisonDay(scriptName, dateKey, statsRevision));
       await _startTodayStream(scriptName, dateKey, statsRevision);
       return;
     }
@@ -333,6 +435,44 @@ class HomeStatisticsController extends GetxController {
               ? ScriptStatisticsConnectionState.error
               : ScriptStatisticsConnectionState.idle;
       lastErrorMessage.value = error.toString();
+    }
+  }
+
+  /// Loads the previous available date as the comparison heat track.
+  ///
+  /// Only today shows a comparison track: past dates already have their own
+  /// single track, and pulling a second day for them doubles the request count
+  /// for a view that is already off-screen most of the time.
+  Future<void> _loadComparisonDay(
+    String scriptName,
+    String dateKey,
+    int statsRevision,
+  ) async {
+    comparisonDay.value = null;
+    if (!isStatisticsDateToday(dateKey)) {
+      return;
+    }
+    final index = availableDateKeys.indexOf(dateKey);
+    if (index < 0 || index + 1 >= availableDateKeys.length) {
+      return;
+    }
+    final comparisonKey = availableDateKeys[index + 1];
+    comparisonLoading.value = true;
+    try {
+      final day =
+          await ApiClient().getScriptStatisticsDay(scriptName, comparisonKey);
+      if (_statsRevision != statsRevision ||
+          selectedDateKey.value != dateKey ||
+          _boundScriptName != scriptName) {
+        return;
+      }
+      comparisonDay.value = day;
+    } catch (_) {
+      // 对比轨只是参照，取不到就只画今天那条，不打扰用户。
+    } finally {
+      if (statsRevision == _statsRevision) {
+        comparisonLoading.value = false;
+      }
     }
   }
 
@@ -380,6 +520,9 @@ class HomeStatisticsController extends GetxController {
     statistics.value = null;
     latestUpdatedTaskName.value = '';
     latestUpdatedTaskPulse.value = 0;
+    selectedHour.value = null;
+    comparisonDay.value = null;
+    comparisonLoading.value = false;
     historySortField.value = ScriptStatisticsChartSortField.data;
     historySortDescending.value = true;
     historyChartLoading.value = false;
@@ -396,6 +539,9 @@ class HomeStatisticsController extends GetxController {
     statistics.value = null;
     selectedDateKey.value = '';
     selectedTaskName.value = '';
+    selectedHour.value = null;
+    comparisonDay.value = null;
+    comparisonLoading.value = false;
     latestUpdatedTaskName.value = '';
     latestUpdatedTaskPulse.value = 0;
     historySortField.value = ScriptStatisticsChartSortField.data;
@@ -408,6 +554,9 @@ class HomeStatisticsController extends GetxController {
   void _resetSelectedDateState() {
     statistics.value = null;
     selectedTaskName.value = '';
+    selectedHour.value = null;
+    comparisonDay.value = null;
+    comparisonLoading.value = false;
     latestUpdatedTaskName.value = '';
     latestUpdatedTaskPulse.value = 0;
     _clearDerivedCaches();
@@ -519,6 +668,74 @@ class HomeStatisticsController extends GetxController {
   void _clearDerivedCaches() {
     _taskEntriesCacheKey = '';
     _taskEntriesCache = const [];
+    _dayDerivedCacheKey = '';
+    _hourBucketsCache = const [];
+    _activeSpanSeconds = 0;
+    _activeSpanStart = null;
+    _activeSpanEnd = null;
+  }
+
+  /// Rebuilds the hourly buckets and the active span when the day changes.
+  void _ensureDayDerived() {
+    final day = statistics.value;
+    if (day == null) {
+      _clearDerivedCaches();
+      return;
+    }
+    final other = comparisonDay.value;
+    final cacheKey = '${day.dateKey}|${day.totalRuntimeSeconds}'
+        '|${day.totalTaskRunCount}|${other?.dateKey ?? ''}'
+        '|${other?.totalRuntimeSeconds ?? -1}';
+    if (cacheKey == _dayDerivedCacheKey) {
+      return;
+    }
+    _hourBucketsCache = buildStatisticsHourBuckets(day, comparison: other);
+    final span = statisticsActiveSpanOf(day);
+    _activeSpanSeconds = span.seconds;
+    _activeSpanStart = span.start;
+    _activeSpanEnd = span.end;
+    _dayDerivedCacheKey = cacheKey;
+  }
+
+  /// Keeps only the runs of one task that overlap the filtered hour.
+  MapEntry<String, ScriptTaskStatistics>? _restrictEntryToHour(
+    MapEntry<String, ScriptTaskStatistics> entry,
+    int hour,
+  ) {
+    final runs = entry.value.runs
+        .where((run) => statisticsRunOverlapsHour(run, hour))
+        .toList(growable: false);
+    if (runs.isEmpty) {
+      return null;
+    }
+    var durationSeconds = 0.0;
+    var battleCount = 0;
+    var battleSeconds = 0.0;
+    DateTime? latestStart;
+    for (final run in runs) {
+      durationSeconds += statisticsRunSecondsInHour(run, hour);
+      battleCount += run.battleCount;
+      battleSeconds += run.battleCount * run.battleAvgDurationSeconds;
+      final start = run.startTime;
+      if (start != null && (latestStart == null || start.isAfter(latestStart))) {
+        latestStart = start;
+      }
+    }
+    return MapEntry(
+      entry.key,
+      ScriptTaskStatistics(
+        runCount: runs.length,
+        totalDurationSeconds: durationSeconds,
+        battle: battleCount > 0
+            ? ScriptStatisticsBattleSummary(
+                count: battleCount,
+                avgDurationSeconds: battleSeconds / battleCount,
+              )
+            : null,
+        runs: runs,
+        latestRunStartTime: latestStart,
+      ),
+    );
   }
 
   /// Marks the latest updated task for a flash highlight.

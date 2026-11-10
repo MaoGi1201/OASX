@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:oasx/config/app_colors.dart';
+import 'package:oasx/config/app_metrics.dart';
 import 'package:get/get.dart';
 import 'package:oasx/modules/args/index.dart';
+import 'package:oasx/modules/common/widgets/app_popup_menu.dart';
 import 'package:oasx/modules/home/controllers/dashboard_controller.dart';
+import 'package:oasx/translation/i18n_content.dart';
 
 /// Opens a dialog that shows and edits the configuration of [taskName].
 ///
@@ -60,7 +63,7 @@ class _TaskConfigDialogState extends State<_TaskConfigDialog> {
     try {
       final argsController = Get.find<ArgsController>();
       final scope = widget.controller.linkedScopeScriptsFor(widget.scriptName);
-      await argsController.loadGroups(
+      final loaded = await argsController.loadGroups(
         config: widget.scriptName,
         task: widget.taskName,
         stagingMode: true,
@@ -77,6 +80,13 @@ class _TaskConfigDialogState extends State<_TaskConfigDialog> {
         },
       );
       if (!mounted) {
+        return;
+      }
+      if (!loaded) {
+        setState(() {
+          _loading = false;
+          _error = I18n.networkError.tr;
+        });
         return;
       }
       setState(() {
@@ -226,9 +236,10 @@ ThemeData _dialogTheme() {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.menu),
         side: BorderSide(color: AppColors.border),
       ),
+      menuPadding: const EdgeInsets.all(kAppMenuInset),
       textStyle: TextStyle(fontSize: 13, color: AppColors.text),
     ),
     menuTheme: MenuThemeData(
@@ -237,7 +248,7 @@ ThemeData _dialogTheme() {
         surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadius.menu),
             side: BorderSide(color: AppColors.border),
           ),
         ),
@@ -253,15 +264,15 @@ ThemeData _dialogTheme() {
       hintStyle: TextStyle(color: AppColors.text2, fontSize: 12.5),
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.button),
         borderSide: BorderSide(color: AppColors.border),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.button),
         borderSide: BorderSide(color: AppColors.border),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.button),
         borderSide: BorderSide(color: AppColors.teal),
       ),
     ),
@@ -271,7 +282,7 @@ ThemeData _dialogTheme() {
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: AppColors.teal,
-        foregroundColor: AppColors.isDark ? const Color(0xFF04140F) : Colors.white,
+        foregroundColor: AppColors.onAccent,
       ),
     ),
   );

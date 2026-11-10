@@ -147,8 +147,8 @@ class ConfigActions {
             ),
             FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.red,
-                foregroundColor: Colors.white,
+                backgroundColor: AppColors.dangerFill,
+                foregroundColor: AppColors.onDangerFill,
               ),
               onPressed: () => Navigator.of(dialogContext).pop(true),
               child: Text(I18n.delete.tr),
