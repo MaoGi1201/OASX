@@ -67,9 +67,58 @@ class AppColors {
   static Color blueFor(Brightness b) =>
       _pick(b, const Color(0xFF2563EB), const Color(0xFF5C8BD9));
 
+  /// Filled "danger" button: 停止配置 and the delete confirmation.
+  ///
+  /// Dark mode uses a **deeper** red than [redFor] rather than the bright
+  /// `#DB5A5E` + near-black text it used to. Black text on a light salmon fill
+  /// reads like an alarm sticker dropped onto a near-black surface — the two
+  /// ends of the luminance range sit side by side and the button screams.
+  /// `#B24A4E` with warm white text keeps 5.2:1 for the label while the fill
+  /// itself stops glowing (2.96:1 against the panel, same order as the teal
+  /// start button, so both states still weigh the same).
+  static Color dangerFillFor(Brightness b) =>
+      _pick(b, const Color(0xFFDC2626), const Color(0xFFB24A4E));
+
+  /// Text colour on top of [dangerFillFor].
+  static Color onDangerFillFor(Brightness b) =>
+      _pick(b, Colors.white, const Color(0xFFFDF2F2));
+
   /// Text colour on top of a filled accent button.
   static Color onAccentFor(Brightness b) =>
       b == Brightness.dark ? const Color(0xFF0B1F19) : Colors.white;
+
+  /// Text colour on top of the warning (yellow) fill.
+  ///
+  /// Near-black in both themes: white on `#D9A441` sits near 3:1, while this
+  /// combination is above 9:1.
+  static Color onWarningFor(Brightness b) => const Color(0xFF1F1A00);
+
+  /// Fixed palette for the per-task bars in the statistics chart.
+  ///
+  /// The colour of a task is derived from its name hash, so it has to stay
+  /// stable across restarts; six hues that remain distinguishable on both the
+  /// light and the dark card surface.
+  static const List<Color> chartPalette = <Color>[
+    Color(0xFF2563EB),
+    Color(0xFFDC2626),
+    Color(0xFF16A34A),
+    Color(0xFFD97706),
+    Color(0xFF7C3AED),
+    Color(0xFF0891B2),
+  ];
+
+  // Log levels. These used to be raw `Colors.yellow / lightGreen / red`, which
+  // on the *light* log background sat at 1.2–1.9:1 — effectively unreadable.
+  // Same hue family, tuned per brightness.
+  static Color logInfoFor(Brightness b) =>
+      _pick(b, const Color(0xFF0E7490), const Color(0xFF5FD3E8));
+  static Color logWarnFor(Brightness b) =>
+      _pick(b, const Color(0xFF92600A), const Color(0xFFE8C05C));
+  static Color logErrorFor(Brightness b) => redFor(b);
+  static Color logSuccessFor(Brightness b) =>
+      _pick(b, const Color(0xFF15803D), const Color(0xFF7BD88F));
+  static Color logDebugFor(Brightness b) =>
+      _pick(b, const Color(0xFF6D28D9), const Color(0xFFB79CFF));
 
   static bool get isDark => Get.isDarkMode;
 
@@ -93,6 +142,14 @@ class AppColors {
   static Color get red => redFor(_brightness);
   static Color get blue => blueFor(_brightness);
   static Color get onAccent => onAccentFor(_brightness);
+  static Color get onWarning => onWarningFor(_brightness);
+  static Color get dangerFill => dangerFillFor(_brightness);
+  static Color get onDangerFill => onDangerFillFor(_brightness);
+  static Color get logInfo => logInfoFor(_brightness);
+  static Color get logWarn => logWarnFor(_brightness);
+  static Color get logError => logErrorFor(_brightness);
+  static Color get logSuccess => logSuccessFor(_brightness);
+  static Color get logDebug => logDebugFor(_brightness);
 
   /// Seed used to derive Material component colours.
   static const Color seed = Color(0xFF0E9E7A);

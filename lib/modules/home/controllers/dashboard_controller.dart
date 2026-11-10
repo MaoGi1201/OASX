@@ -113,6 +113,17 @@ class HomeDashboardController extends GetxController {
 
   /// Current bulk quick schedule state for the active config workbench.
   final bulkQuickScheduleMode = HomeBulkQuickScheduleMode.none.obs;
+
+  /// 仍在跑的批量快捷调度 worker 数量。
+  ///
+  /// [bulkQuickScheduleMode] 会在 5 秒超时后归零好让 UI 解锁，但底层串行
+  /// 写入并不会跟着停。若只靠 mode 防重入，用户再点一次就会开始第二批、
+  /// 和上一批并发 PUT 同一批任务的 `next_run`（任务被执行多次、时间被改乱）。
+  /// 这个计数在 worker 真正退出时才减，用来挡住并发的第二批。
+  int _bulkQuickScheduleWorkers = 0;
+
+  /// 取消令牌：超时后自增，worker 在任务之间检查并提前收手。
+  int _bulkQuickScheduleToken = 0;
   final isStartupChecking = false.obs;
   final isStartupConnectionFailed = false.obs;
   final isStartupAutoDeploying = false.obs;

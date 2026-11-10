@@ -224,6 +224,24 @@ class I18n {
   static const String homeStatsSortByData = 'home_stats_sort_by_data',
       homeStatsSortByTime = 'home_stats_sort_by_time',
       homeStatsNoBattle = 'home_stats_no_battle';
+  static const String homeStatsEffectiveRatio = 'home_stats_effective_ratio',
+      homeStatsActiveSpan = 'home_stats_active_span',
+      homeStatsLive = 'home_stats_live';
+  static const String homeStatsChipDuration = 'home_stats_chip_duration',
+      homeStatsChipRunCount = 'home_stats_chip_run_count',
+      homeStatsChipBattleCount = 'home_stats_chip_battle_count',
+      homeStatsChipBattleAvg = 'home_stats_chip_battle_avg',
+      homeStatsChipAvgDuration = 'home_stats_chip_avg_duration';
+  static const String homeStatsHourFilter = 'home_stats_hour_filter',
+      homeStatsHourFilterClear = 'home_stats_hour_filter_clear',
+      homeStatsHourEmpty = 'home_stats_hour_empty';
+  static const String homeStatsExpandRest = 'home_stats_expand_rest',
+      homeStatsExpandMoreTasks = 'home_stats_expand_more_tasks',
+      homeStatsCollapse = 'home_stats_collapse',
+      homeStatsRunUnit = 'home_stats_run_unit';
+  static const String homeStatsYesterday = 'home_stats_yesterday',
+      homeStatsBattleShort = 'home_stats_battle_short',
+      homeStatsMoreDates = 'home_stats_more_dates';
   static const String homeTaskFilterAll = 'home_task_filter_all',
       homeTaskFilterEnabled = 'home_task_filter_enabled',
       homeTaskFilterDisabled = 'home_task_filter_disabled';
@@ -234,6 +252,7 @@ class I18n {
       homeQuickRunAll = 'home_quick_run_all',
       homeQuickWaitAll = 'home_quick_wait_all',
       homeBulkQuickScheduleTimedOut = 'home_bulk_quick_schedule_timed_out',
+      homeBulkQuickScheduleBusy = 'home_bulk_quick_schedule_busy',
       homeOpenTaskParams = 'home_open_task_params',
       homeTaskConfigureAndEnable = 'home_task_configure_and_enable';
   /// 配置启停按钮（顶栏标签 + 配置卡片胶囊）的文案与提示。

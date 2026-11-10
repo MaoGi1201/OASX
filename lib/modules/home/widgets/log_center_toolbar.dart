@@ -198,7 +198,7 @@ class _LogIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(7);
+    final radius = BorderRadius.circular(8);
     return Tooltip(
       message: tooltip,
       child: Padding(

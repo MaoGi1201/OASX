@@ -10,7 +10,6 @@ import 'package:oasx/modules/home/models/config_model.dart';
 import 'package:oasx/modules/home/models/taskitem_model.dart';
 import 'package:oasx/service/websocket_service.dart';
 import 'package:oasx/translation/i18n_content.dart';
-import 'package:oasx/utils/extension_utils.dart';
 import 'package:oasx/utils/platform_utils.dart';
 import 'package:oasx/utils/time_utils.dart';
 import 'package:oasx/modules/log/script_log_controller.dart';
@@ -28,6 +27,13 @@ class ScriptService extends GetxService {
   final scriptOrderList = <String>[].obs;
   final autoScriptList = <String>[].obs;
 
+  /// 每个配置一条的 WS 传输状态订阅。
+  ///
+  /// 之前直接在 [connectScript] 里 `client.status.listen` 而不保存，重复连接
+  /// （刷新、启动、导入配置都会调）会不断叠加监听，同一次状态变化触发 N 次
+  /// 模型更新。按配置名保存并替换，保证每条连接只有一个订阅。
+  final _wsStatusSubscriptions = <String, StreamSubscription<WsStatus>>{};
+
   bool get _shouldSkipBackendReload {
     return PlatformUtils.isWeb && !ApiClient().hasConfiguredBackendAddress;
   }
@@ -41,6 +47,10 @@ class ScriptService extends GetxService {
 
   @override
   Future<void> onClose() async {
+    for (final subscription in _wsStatusSubscriptions.values) {
+      await subscription.cancel();
+    }
+    _wsStatusSubscriptions.clear();
     await Future.wait([
       ...scriptModelMap.keys.map(
         (e) => Future.wait([
@@ -81,6 +91,10 @@ class ScriptService extends GetxService {
 
   void deleteScriptModel(String name) {
     if (!scriptModelMap.containsKey(name)) return;
+    final subscription = _wsStatusSubscriptions.remove(name);
+    if (subscription != null) {
+      unawaited(subscription.cancel());
+    }
     scriptModelMap.remove(name);
     wsService.close(name);
     autoScriptList.removeWhere((e) => e == name);

@@ -1,5 +1,7 @@
+import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:oasx/modules/home/models/script_statistics_models.dart';
+import 'package:oasx/translation/i18n_content.dart';
 
 /// Formats seconds into a readable duration label.
 String formatStatisticsDuration(double seconds) {
@@ -83,4 +85,23 @@ String formatStatisticsTimeRange(DateTime? start, DateTime? end) {
 /// Formats a selected run range using clock-only labels.
 String formatStatisticsClockTimeRange(DateTime? start, DateTime? end) {
   return '${formatStatisticsClockTimePrecise(start)} -> ${formatStatisticsClockTimePrecise(end)}';
+}
+
+/// Formats a date key as 今天 / 昨天 / MM-dd for the segmented date bar.
+String formatStatisticsDayChipLabel(String dateKey) {
+  if (isStatisticsDateToday(dateKey)) {
+    return I18n.homeStatsToday.tr;
+  }
+  final value = DateTime.tryParse(dateKey);
+  if (value != null) {
+    final now = DateTime.now();
+    final yesterday =
+        DateTime(now.year, now.month, now.day).subtract(const Duration(days: 1));
+    if (value.year == yesterday.year &&
+        value.month == yesterday.month &&
+        value.day == yesterday.day) {
+      return I18n.homeStatsYesterday.tr;
+    }
+  }
+  return formatStatisticsDayLabel(dateKey);
 }

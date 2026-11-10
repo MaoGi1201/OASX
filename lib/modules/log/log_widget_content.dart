@@ -42,71 +42,63 @@ class LogContent extends StatelessWidget {
     ).constrained(width: double.infinity, height: double.infinity);
   }
 
+  /// 等宽数字，避免时间戳在滚动时抖动。
+  static const List<FontFeature> _tabular = [FontFeature.tabularFigures()];
+
+  /// 日志高亮样式：颜色来自主题令牌，随明暗切换，所以不能是 const。
+  static TextStyle _logStyle(Color color) =>
+      TextStyle(color: color, fontFeatures: _tabular);
+
   List<EasyRichTextPattern> _buildPatterns() {
     return [
-      const EasyRichTextPattern(
+      EasyRichTextPattern(
         targetString: 'INFO',
-        style: TextStyle(
-          color: Color.fromARGB(255, 55, 109, 136),
-          fontFeatures: [FontFeature.tabularFigures()],
-        ),
-        suffixInlineSpan: TextSpan(
-          style: TextStyle(fontFeatures: [FontFeature.tabularFigures()]),
+        style: _logStyle(AppColors.logInfo),
+        suffixInlineSpan: const TextSpan(
+          style: TextStyle(fontFeatures: _tabular),
           text: '      ',
         ),
       ),
-      const EasyRichTextPattern(
+      EasyRichTextPattern(
         targetString: 'WARNING',
-        style: TextStyle(
-          color: Colors.yellow,
-          fontFeatures: [FontFeature.tabularFigures()],
-        ),
+        style: _logStyle(AppColors.logWarn),
       ),
-      const EasyRichTextPattern(
+      EasyRichTextPattern(
         targetString: 'ERROR',
-        style: TextStyle(
-          color: Colors.red,
-          fontFeatures: [FontFeature.tabularFigures()],
-        ),
-        suffixInlineSpan: TextSpan(
-          style: TextStyle(fontFeatures: [FontFeature.tabularFigures()]),
+        style: _logStyle(AppColors.logError),
+        suffixInlineSpan: const TextSpan(
+          style: TextStyle(fontFeatures: _tabular),
           text: '    ',
         ),
       ),
-      const EasyRichTextPattern(
+      EasyRichTextPattern(
         targetString: 'CRITICAL',
-        style: TextStyle(
-          color: Colors.red,
-          fontFeatures: [FontFeature.tabularFigures()],
-        ),
-        suffixInlineSpan: TextSpan(text: '   '),
+        style: _logStyle(AppColors.logError),
+        suffixInlineSpan: const TextSpan(text: '   '),
       ),
-      const EasyRichTextPattern(
+      EasyRichTextPattern(
         targetString: r'(\d{2}:\d{2}:\d{2}\.\d{3})',
-        style: TextStyle(
-          color: Colors.cyan,
-          fontFeatures: [FontFeature.tabularFigures()],
-        ),
+        style: _logStyle(AppColors.logInfo),
       ),
       const EasyRichTextPattern(
         targetString: r'[\{\[\(\)\]\}]',
         style: TextStyle(fontWeight: FontWeight.bold),
       ),
-      const EasyRichTextPattern(
+      EasyRichTextPattern(
         targetString: 'True',
-        style: TextStyle(color: Colors.lightGreen),
+        style: _logStyle(AppColors.logSuccess),
       ),
-      const EasyRichTextPattern(
+      EasyRichTextPattern(
         targetString: 'False',
-        style: TextStyle(color: Colors.red),
+        style: _logStyle(AppColors.logError),
       ),
-      const EasyRichTextPattern(
+      EasyRichTextPattern(
         targetString: 'None',
-        style: TextStyle(color: Colors.purple),
+        style: _logStyle(AppColors.logDebug),
       ),
-      const EasyRichTextPattern(
+      EasyRichTextPattern(
         targetString: r'(某喵*某喵)|(~~*~~)',
-        style: TextStyle(color: Colors.lightGreen),
+        style: _logStyle(AppColors.logSuccess),
       ),
     ];
   }

@@ -26,7 +26,13 @@ class Routes {
       name: '/server',
       page: () => const ServerView(),
       binding: BindingsBuilder(() {
-        Get.put<ServerController>(ServerController());
+        // The controller owns long-lived shell subscriptions and the deploy
+        // log buffer, so a fresh instance per visit leaked the old one (it was
+        // replaced in the registry but never closed). Register once and reuse;
+        // startup auto-deploy registers it as permanent with the same shape.
+        if (!Get.isRegistered<ServerController>()) {
+          Get.put<ServerController>(ServerController(), permanent: true);
+        }
       }),
     ),
   ];

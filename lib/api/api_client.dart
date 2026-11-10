@@ -144,11 +144,26 @@ class ApiClient {
   }
 
   Future<bool> killServer() async {
+    // 同上：这是会改变后端进程状态的命令，不能被缓存挡掉。
     final res = await request(
-      () => get('/home/kill_server'),
+      () => get('/home/kill_server', options: _noCacheOptions()),
       onError: (msg, code) {},
     );
     return res.isSuccess && res.data == 'success';
+  }
+
+  /// 显式禁用缓存的请求选项。
+  ///
+  /// 全局 `DioCacheInterceptor` 对 GET 一律缓存（`policy: request`、7 天
+  /// `maxStale`、网络错误时回落缓存），只适用于「旧一点也无所谓」的读取。
+  /// 连接检测、日志、统计、以及任何写操作的旁路查询都必须走这里。
+  Options _noCacheOptions({ResponseType? responseType}) {
+    final cacheOptions = _cacheOptions.copyWith(policy: CachePolicy.noCache);
+    return Options(
+      extra: cacheOptions.toExtra(),
+      headers: const {'Cache-Control': 'no-cache', 'Pragma': 'no-cache'},
+      responseType: responseType,
+    );
   }
 
   Future<bool> notifyTest(String setting, String title, String content) async {

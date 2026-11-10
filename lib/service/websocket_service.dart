@@ -16,9 +16,16 @@ class WebSocketService extends GetxService {
     MessageListener? listener,
     bool force = false,
   }) async {
-    if (_clients.containsKey(name) &&
-        _clients[name]!.status.value == WsStatus.connected) {
-      return _clients[name]!._addListener(listener);
+    final existing = _clients[name];
+    if (existing != null && existing.status.value == WsStatus.connected) {
+      return existing._addListener(listener);
+    }
+    // 旧连接可能正卡在重连循环里。这里必须先把它关掉：下面会用新对象覆盖
+    // `_clients[name]`，之后就再也没有人能关掉它，它会一直在后台重试。
+    if (existing != null) {
+      await existing
+          ._close(WebSocketStatus.normalClosure, 'replaced by new connect')
+          .timeout(const Duration(seconds: 2), onTimeout: () {});
     }
 
     url ??= 'ws://${ApiClient().address}/ws/$name';

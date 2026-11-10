@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>OASX · 统计面板重设计 v2</title>
+<style>
+:root{
+  --bg:#191C21; --panel:#20242A; --card:#282D35; --surface2:#2F353E; --surface3:#232830;
+  --border:#343B45; --text:#C6CED9; --text2:#9BA5B2; --text3:#848D9A;
+  --teal:#3CBFA0; --teal-dim:#16332C; --red:#E24B4A;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:#111317; color:var(--text); font-size:13px; line-height:1.6;
+  font-family:"PingFang SC","Microsoft YaHei","Segoe UI",system-ui,sans-serif;
+  padding:32px 24px 64px; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:960px;margin:0 auto;}
+h1{font-size:18px;font-weight:500;margin-bottom:6px;}
+.sub{color:var(--text3);font-size:12.5px;margin-bottom:28px;}
+.cols{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;}
+.col{flex:1 1 420px;min-width:0;}
+.verdict{
+  font-size:12px;color:var(--text3);margin:0 0 10px 2px;
+  display:flex;align-items:center;gap:6px;
+}
+.dot{width:6px;height:6px;border-radius:999px;background:var(--teal);flex:0 0 6px;}
+.dot.warn{background:var(--red);}
+.panel{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:14px 12px;}
+
+.row{display:flex;align-items:center;gap:6px;}
+.chip{height:28px;padding:0 12px;border-radius:8px;display:flex;align-items:center;font-size:12px;color:var(--text2);}
+.chip.on{background:var(--teal-dim);border:1px solid rgba(60,191,160,0.35);color:var(--teal);font-weight:500;}
+.chip.dd{padding:0 10px;gap:5px;}
+.caret{font-size:10px;color:var(--text3);}
+.live{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--teal);}
+.live i{width:6px;height:6px;border-radius:999px;background:var(--teal);display:block;}
+
+.hero{margin-top:14px;display:flex;align-items:flex-end;gap:8px;}
+.hero .num{font-size:26px;font-weight:500;line-height:1;}
+.hero .cap{font-size:11px;color:var(--text3);padding-bottom:2px;}
+.ratio{margin-left:auto;text-align:right;padding-bottom:1px;}
+.ratio b{display:block;font-size:13px;font-weight:500;color:var(--teal);}
+.ratio span{font-size:11px;color:var(--text3);font-weight:400;}
+
+.strip{
+  display:flex;align-items:center;height:30px;margin-top:10px;
+  border-top:1px solid rgba(60,68,80,0.7);border-bottom:1px solid rgba(60,68,80,0.7);
+}
+.strip>div{flex:1;display:flex;flex-direction:column;gap:1px;}
+.strip>div+div{border-left:1px solid rgba(60,68,80,0.9);padding-left:12px;}
+.strip b{font-size:15px;font-weight:500;line-height:1.15;}
+.strip span{font-size:11px;color:var(--text3);line-height:1.15;}
+
+.metrics{display:flex;gap:6px;margin-top:12px;align-items:center;}
+.mchip{height:26px;padding:0 10px;border-radius:7px;display:flex;align-items:center;font-size:11.5px;color:var(--text3);}
+.mchip.on{background:var(--surface2);color:var(--text);font-weight:500;}
+.sort{margin-left:auto;height:26px;padding:0 8px;border-radius:7px;display:flex;align-items:center;font-size:11px;color:var(--text3);}
+
+.bars{margin-top:10px;display:flex;flex-direction:column;}
+.bar{display:flex;align-items:center;height:34px;padding-left:2px;border-radius:6px;}
+.bar.sel{background:var(--surface3);}
+.bar .lead{width:2px;height:20px;border-radius:2px;background:transparent;flex:0 0 2px;}
+.bar.sel .lead{background:var(--teal);}
+.bar .name{width:90px;padding-left:8px;font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar.sel .name{color:var(--text);font-weight:500;}
+.bar .track{flex:1;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;}
+.bar .fill{height:100%;background:var(--teal);opacity:0.82;}
+.bar.sel .fill{opacity:1;}
+.bar .val{width:60px;text-align:right;font-size:11.5px;color:var(--text2);}
+.bar.sel .val{color:var(--text);}
+
+.detail{margin-top:14px;padding-top:12px;border-top:1px solid rgba(60,68,80,0.7);}
+.dhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.dhead b{font-size:12px;font-weight:500;}
+.dhead span{font-size:11px;color:var(--text3);}
+.drow{display:flex;align-items:center;height:26px;font-size:11.5px;border-bottom:1px solid rgba(52,59,69,0.5);}
+.drow:last-of-type{border-bottom:0;}
+.drow .idx{width:26px;color:var(--text3);}
+.drow .span{flex:1;color:var(--text2);}
+.drow .dur{width:56px;text-align:right;color:var(--text);}
+.drow .bat{width:42px;text-align:right;color:var(--text3);}
+.more{text-align:center;font-size:11px;color:var(--teal);margin-top:8px;}
+
+.heat{margin-top:14px;}
+.heat-head{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
+.heat-head .k{font-size:11px;color:var(--text);width:26px;flex:0 0 26px;}
+.heat-head .v{font-size:11px;color:var(--text3);}
+.cells{display:flex;gap:2px;align-items:flex-end;}
+.cell{flex:1;background:var(--surface3);border-radius:3px;position:relative;overflow:hidden;}
+.cell i{position:absolute;bottom:0;left:0;right:0;background:var(--teal);border-radius:3px;display:block;}
+.cells.y .cell i{background:#2A6B5C;}
+.axis{display:flex;margin-top:4px;padding-left:32px;font-size:10.5px;color:var(--text3);}
+.axis span{flex:0 0 25%;}
+.axis span:last-child{text-align:right;}
+
+.notes{margin-top:36px;}
+h2{font-size:14px;font-weight:500;margin:28px 0 10px;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid rgba(60,68,80,0.55);vertical-align:top;}
+th{color:var(--text3);font-weight:400;font-size:11.5px;}
+td:first-child{width:34%;color:var(--text);}
+td code{font-family:var(--font-mono),"Cascadia Mono",Consolas,monospace;font-size:11.5px;color:var(--teal);}
+ul{margin:8px 0 0 18px;}
+li{margin-bottom:6px;color:var(--text2);}
+li b{color:var(--text);font-weight:500;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>统计面板重设计 v2</h1>
+  <p class="sub">约束：右侧栏实际宽度 400–440px，深色口径沿用 <code>#191C21 / #20242A / #282D35 / #343B45 / #C6CED9 / #3CBFA0</code>。示意图中的数字为示意值，非真实抓取。</p>
+
+  <p class="verdict"><span class="dot"></span>完整方案 · A 的层级 + B 的时间维度（主推）</p>
+  <div class="cols" style="margin-bottom:40px">
+
+    <div class="col" style="flex:0 0 420px;max-width:420px">
+      <div class="panel">
+
+        <div class="row">
+          <div class="chip on">今天</div>
+          <div class="chip">昨天</div>
+          <div class="chip dd">11-08 <span class="caret">▾</span></div>
+          <div class="live"><i></i>实时</div>
+        </div>
+
+        <div class="hero">
+          <span class="num">6h 42m</span>
+          <span class="cap">累计运行</span>
+          <div class="ratio"><b>75%</b><span>有效运行占比</span></div>
+        </div>
+
+        <div class="strip">
+          <div><b>9</b><span>任务</span></div>
+          <div><b>24</b><span>运行次数</span></div>
+          <div><b>1,286</b><span>战斗</span></div>
+          <div><b>16m 45s</b><span>平均单次</span></div>
+        </div>
+
+        <div class="heat">
+          <div class="heat-head"><span class="k">今天</span><span class="v">06:40 启动 · 15:37 结束 · 跨 8h 57m</span></div>
+          <div class="cells" style="height:30px">
+            <div class="cell" style="height:30px"></div>
+            <div class="cell" style="height:30px"></div>
+            <div class="cell" style="height:30px"></div>
+            <div class="cell" style="height:30px"></div>
+            <div class="cell" style="height:30px"></div>
+            <div class="cell" style="height:30px"></div>
+            <div class="cell" style="height:30px"><i style="height:10px"></i></div>
+            <div class="cell" style="height:30px"><i style="height:28px"></i></div>
+            <div class="cell" style="height:30px"><i style="height:18px"></i></div>
+            <div class="cell" style="height:30px"><i style="height:25px"></i></div>
+            <div class="cell" style="height:30px"><i style="height:28px"></i></div>
+            <div class="cell" style="height:30px"><i style="height:20px"></i></div>
+            <div class="cell" style="height:30px"><i style="height:10px"></i></div>
+            <div class="cell" style="height:30px"><i style="height:18px"></i></div>
+            <div class="cell" style="height:30px"><i style="height:28px"></i></div>
+            <div class="cell" style="height:30px"><i style="height:19px"></i></div>
+            <div class="cell" style="height:30px"></div>
+            <div class="cell" style="height:30px"></div>
+            <div class="cell" style="height:30px"></div>
+            <div class="cell" style="height:30px"></div>
+            <div class="cell" style="height:30px"></div>
+            <div class="cell" style="height:30px"></div>
+            <div class="cell" style="height:30px"></div>
+            <div class="cell" style="height:30px"></div>
+          </div>
+          <div class="axis"><span>00</span><span>06</span><span>12</span><span>18 · 24</span></div>
+        </div>
+
+        <div class="heat" style="margin-top:11px">
+          <div class="heat-head"><span class="k" style="color:var(--text2)">昨天</span><span class="v">5h 55m · 07:10 启动 · 跨 7h 40m</span></div>
+          <div class="cells y" style="height:20px">
+            <div class="cell" style="height:20px"></div>
+            <div class="cell" style="height:20px"></div>
+            <div class="cell" style="height:20px"></div>
+            <div class="cell" style="height:20px"></div>
+            <div class="cell" style="height:20px"></div>
+            <div class="cell" style="height:20px"></div>
+            <div class="cell" style="height:20px"></div>
+            <div class="cell" style="height:20px"><i style="height:10px"></i></div>
+            <div class="cell" style="height:20px"><i style="height:20px"></i></div>
+            <div class="cell" style="height:20px"><i style="height:15px"></i></div>
+            <div class="cell" style="height:20px"><i style="height:20px"></i></div>
+            <div class="cell" style="height:20px"><i style="height:10px"></i></div>
+            <div class="cell" style="height:20px"></div>
+            <div class="cell" style="height:20px"><i style="height:17px"></i></div>
+            <div class="cell" style="height:20px"><i style="height:20px"></i></div>
+            <div class="cell" style="height:20px"><i style="height:7px"></i></div>
+            <div class="cell" style="height:20px"></div>
+            <div class="cell" style="height:20px"></div>
+            <div class="cell" style="height:20px"></div>
+            <div class="cell" style="height:20px"></div>
+            <div class="cell" style="height:20px"></div>
+            <div class="cell" style="height:20px"></div>
+            <div class="cell" style="height:20px"></div>
+            <div class="cell" style="height:20px"></div>
+          </div>
+        </div>
+
+        <div class="metrics">
+          <div class="mchip on">总时长</div>
+          <div class="mchip">次数</div>
+          <div class="mchip">战斗</div>
+          <div class="mchip">均时</div>
+          <div class="sort">时长 ↓</div>
+        </div>
+
+        <div class="bars">
+          <div class="bar sel"><div class="lead"></div><div class="name">结界突破</div><div class="track"><div class="fill" style="width:100%"></div></div><div class="val">1h 52m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">御魂副本</div><div class="track"><div class="fill" style="width:77%"></div></div><div class="val">1h 26m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">业原火</div><div class="track"><div class="fill" style="width:52%"></div></div><div class="val">58m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">道馆突破</div><div class="track"><div class="fill" style="width:37%"></div></div><div class="val">42m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">每日任务</div><div class="track"><div class="fill" style="width:32%"></div></div><div class="val">36m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">协同斗技</div><div class="track"><div class="fill" style="width:25%"></div></div><div class="val">28m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">悬赏封印</div><div class="track"><div class="fill" style="width:18%"></div></div><div class="val">20m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">式神委派</div><div class="track"><div class="fill" style="width:12%"></div></div><div class="val">14m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">式神育成</div><div class="track"><div class="fill" style="width:5%"></div></div><div class="val">6m</div></div>
+        </div>
+
+        <div class="detail">
+          <div class="dhead"><b>结界突破 · 12 次运行</b><span>216 战 · 均 9m 20s</span></div>
+          <div class="drow"><span class="idx">12</span><span class="span">14:02 → 14:11</span><span class="dur">9m 20s</span><span class="bat">18</span></div>
+          <div class="drow"><span class="idx">11</span><span class="span">13:41 → 13:50</span><span class="dur">9m 05s</span><span class="bat">17</span></div>
+          <div class="drow"><span class="idx">10</span><span class="span">13:02 → 13:11</span><span class="dur">9m 30s</span><span class="bat">18</span></div>
+          <div class="drow"><span class="idx">09</span><span class="span">12:38 → 12:47</span><span class="dur">9m 10s</span><span class="bat">17</span></div>
+          <div class="more">展开剩余 8 次</div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="col">
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px;">
+        <h2 style="margin:0 0 10px;font-size:13px;">纵向结构（自上而下）</h2>
+        <table style="font-size:12px">
+          <tr><td style="width:30%;padding:6px 8px">日期切换</td><td style="padding:6px 8px;color:var(--text2)">28px · segmented</td></tr>
+          <tr><td style="padding:6px 8px">主数字</td><td style="padding:6px 8px;color:var(--text2)">40px · 总时长 + 占比</td></tr>
+          <tr><td style="padding:6px 8px">摘要条</td><td style="padding:6px 8px;color:var(--text2)">30px · 4 项竖线分隔</td></tr>
+          <tr><td style="padding:6px 8px">热力轨 ×2</td><td style="padding:6px 8px;color:var(--text2)">约 100px · 今天 30 + 昨天 20</td></tr>
+          <tr><td style="padding:6px 8px">指标 chips</td><td style="padding:6px 8px;color:var(--text2)">26px</td></tr>
+          <tr><td style="padding:6px 8px">条形图</td><td style="padding:6px 8px;color:var(--text2)">306px · 9 行 × 34</td></tr>
+          <tr><td style="padding:6px 8px">明细</td><td style="padding:6px 8px;color:var(--text2)">约 150px · 4 行 + 展开</td></tr>
+        </table>
+        <p style="font-size:11.5px;color:var(--text3);margin-top:12px;line-height:1.7">
+          合计约 750px。右栏在 1080p 窗口下可用高度约 800px，正好一屏；把条形图收到 8 行或明细收到 3 行还能再挤 60px 余量。
+        </p>
+      </div>
+
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-top:12px;">
+        <h2 style="margin:0 0 10px;font-size:13px;">两块的衔接方式</h2>
+        <ul style="font-size:12px">
+          <li><b>占比 75% 的算法</b>：累计运行 ÷（当日首次启动 → 最后结束的跨度）。跨度 8h57m = 537min，运行 402min。它不是「24h 占比」，否则永远只有百分之十几，没有参考价值。</li>
+          <li><b>热力条与条形图的分工</b>：热力条回答「什么时候在跑」，条形图回答「哪个任务吃时间」，两者不重复。</li>
+          <li><b>点热力条的格子</b>：可以把条形图过滤成那一小时内的任务，或者直接把明细滚到该时段。这个交互可选，不做也不影响可读性。</li>
+          <li><b>选「昨天」以外的日期</b>：热力轨只画选中那一天，不画对比轨（否则要拉两天数据）。</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <h2 style="margin-top:0">分步方案（过程参考）</h2>
+  <p class="sub" style="margin-bottom:20px">下面两版是合成完整稿之前的两步：A 只改结构、B 只加时间维度。留作实现时的分阶段依据。</p>
+
+  <div class="cols">
+
+    <div class="col">
+      <p class="verdict"><span class="dot"></span>方案 A · 层级收敛（改动小，先做）</p>
+      <div class="panel">
+
+        <div class="row">
+          <div class="chip on">今天</div>
+          <div class="chip">昨天</div>
+          <div class="chip dd">11-08 <span class="caret">▾</span></div>
+          <div class="live"><i></i>实时</div>
+        </div>
+
+        <div class="hero">
+          <span class="num">6h 42m</span>
+          <span class="cap">累计运行</span>
+        </div>
+
+        <div class="strip">
+          <div><b>9</b><span>任务</span></div>
+          <div><b>24</b><span>运行次数</span></div>
+          <div><b>1,286</b><span>战斗</span></div>
+          <div><b>16m 45s</b><span>平均单次</span></div>
+        </div>
+
+        <div class="metrics">
+          <div class="mchip on">总时长</div>
+          <div class="mchip">次数</div>
+          <div class="mchip">战斗</div>
+          <div class="mchip">均时</div>
+          <div class="sort">时长 ↓</div>
+        </div>
+
+        <div class="bars">
+          <div class="bar sel"><div class="lead"></div><div class="name">结界突破</div><div class="track"><div class="fill" style="width:100%"></div></div><div class="val">1h 52m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">御魂副本</div><div class="track"><div class="fill" style="width:77%"></div></div><div class="val">1h 26m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">业原火</div><div class="track"><div class="fill" style="width:52%"></div></div><div class="val">58m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">道馆突破</div><div class="track"><div class="fill" style="width:37%"></div></div><div class="val">42m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">每日任务</div><div class="track"><div class="fill" style="width:32%"></div></div><div class="val">36m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">协同斗技</div><div class="track"><div class="fill" style="width:25%"></div></div><div class="val">28m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">悬赏封印</div><div class="track"><div class="fill" style="width:18%"></div></div><div class="val">20m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">式神委派</div><div class="track"><div class="fill" style="width:12%"></div></div><div class="val">14m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">式神育成</div><div class="track"><div class="fill" style="width:5%"></div></div><div class="val">6m</div></div>
+        </div>
+
+        <div class="detail">
+          <div class="dhead"><b>结界突破 · 12 次运行</b><span>216 战 · 均 9m 20s</span></div>
+          <div class="drow"><span class="idx">12</span><span class="span">14:02 → 14:11</span><span class="dur">9m 20s</span><span class="bat">18</span></div>
+          <div class="drow"><span class="idx">11</span><span class="span">13:41 → 13:50</span><span class="dur">9m 05s</span><span class="bat">17</span></div>
+          <div class="drow"><span class="idx">10</span><span class="span">13:02 → 13:11</span><span class="dur">9m 30s</span><span class="bat">18</span></div>
+          <div class="drow"><span class="idx">09</span><span class="span">12:38 → 12:47</span><span class="dur">9m 10s</span><span class="bat">17</span></div>
+          <div class="more">展开剩余 8 次</div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="col">
+      <p class="verdict"><span class="dot warn"></span>方案 B · A + 24h 热力条（增量，可后做）</p>
+      <div class="panel">
+
+        <div class="row">
+          <div class="chip on">今天</div>
+          <div class="chip">昨天</div>
+          <div class="chip dd">11-08 <span class="caret">▾</span></div>
+          <div class="live"><i></i>实时</div>
+        </div>
+
+        <div class="hero">
+          <span class="num">6h 42m</span>
+          <span class="cap">累计运行</span>
+          <div class="ratio"><b>75%</b><span>有效运行占比</span></div>
+        </div>
+
+        <div class="heat">
+          <div class="heat-head"><span class="k">今天</span><span class="v">06:40 启动 · 15:37 结束</span></div>
+          <div class="cells" style="height:34px">
+            <div class="cell" style="height:34px"><i style="height:0"></i></div>
+            <div class="cell" style="height:34px"><i style="height:0"></i></div>
+            <div class="cell" style="height:34px"><i style="height:0"></i></div>
+            <div class="cell" style="height:34px"><i style="height:0"></i></div>
+            <div class="cell" style="height:34px"><i style="height:0"></i></div>
+            <div class="cell" style="height:34px"><i style="height:0"></i></div>
+            <div class="cell" style="height:34px"><i style="height:12px"></i></div>
+            <div class="cell" style="height:34px"><i style="height:31px"></i></div>
+            <div class="cell" style="height:34px"><i style="height:20px"></i></div>
+            <div class="cell" style="height:34px"><i style="height:28px"></i></div>
+            <div class="cell" style="height:34px"><i style="height:31px"></i></div>
+            <div class="cell" style="height:34px"><i style="height:23px"></i></div>
+            <div class="cell" style="height:34px"><i style="height:11px"></i></div>
+            <div class="cell" style="height:34px"><i style="height:20px"></i></div>
+            <div class="cell" style="height:34px"><i style="height:31px"></i></div>
+            <div class="cell" style="height:34px"><i style="height:21px"></i></div>
+            <div class="cell" style="height:34px"></div>
+            <div class="cell" style="height:34px"></div>
+            <div class="cell" style="height:34px"></div>
+            <div class="cell" style="height:34px"></div>
+            <div class="cell" style="height:34px"></div>
+            <div class="cell" style="height:34px"></div>
+            <div class="cell" style="height:34px"></div>
+            <div class="cell" style="height:34px"></div>
+          </div>
+          <div class="axis"><span>00</span><span>06</span><span>12</span><span>18 · 24</span></div>
+        </div>
+
+        <div class="heat" style="margin-top:12px">
+          <div class="heat-head"><span class="k" style="color:var(--text2)">昨天</span><span class="v">5h 55m · 07:10 启动</span></div>
+          <div class="cells y" style="height:22px">
+            <div class="cell" style="height:22px"><i style="height:0"></i></div>
+            <div class="cell" style="height:22px"><i style="height:0"></i></div>
+            <div class="cell" style="height:22px"><i style="height:0"></i></div>
+            <div class="cell" style="height:22px"><i style="height:0"></i></div>
+            <div class="cell" style="height:22px"><i style="height:0"></i></div>
+            <div class="cell" style="height:22px"><i style="height:0"></i></div>
+            <div class="cell" style="height:22px"><i style="height:0"></i></div>
+            <div class="cell" style="height:22px"><i style="height:11px"></i></div>
+            <div class="cell" style="height:22px"><i style="height:22px"></i></div>
+            <div class="cell" style="height:22px"><i style="height:16px"></i></div>
+            <div class="cell" style="height:22px"><i style="height:22px"></i></div>
+            <div class="cell" style="height:22px"><i style="height:11px"></i></div>
+            <div class="cell" style="height:22px"><i style="height:0"></i></div>
+            <div class="cell" style="height:22px"><i style="height:18px"></i></div>
+            <div class="cell" style="height:22px"><i style="height:22px"></i></div>
+            <div class="cell" style="height:22px"><i style="height:7px"></i></div>
+            <div class="cell" style="height:22px"></div>
+            <div class="cell" style="height:22px"></div>
+            <div class="cell" style="height:22px"></div>
+            <div class="cell" style="height:22px"></div>
+            <div class="cell" style="height:22px"></div>
+            <div class="cell" style="height:22px"></div>
+            <div class="cell" style="height:22px"></div>
+            <div class="cell" style="height:22px"></div>
+          </div>
+        </div>
+
+        <div class="metrics">
+          <div class="mchip on">总时长</div>
+          <div class="mchip">次数</div>
+          <div class="mchip">战斗</div>
+          <div class="sort">时长 ↓</div>
+        </div>
+
+        <div class="bars">
+          <div class="bar sel"><div class="lead"></div><div class="name">结界突破</div><div class="track"><div class="fill" style="width:100%"></div></div><div class="val">1h 52m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">御魂副本</div><div class="track"><div class="fill" style="width:77%"></div></div><div class="val">1h 26m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">业原火</div><div class="track"><div class="fill" style="width:52%"></div></div><div class="val">58m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">道馆突破</div><div class="track"><div class="fill" style="width:37%"></div></div><div class="val">42m</div></div>
+          <div class="bar"><div class="lead"></div><div class="name">每日任务</div><div class="track"><div class="fill" style="width:32%"></div></div><div class="val">36m</div></div>
+        </div>
+        <div class="more">其余 4 个任务折叠</div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <div class="notes">
+
+    <h2>改了什么</h2>
+    <table>
+      <tr><th>位置</th><th>现状</th><th>改后</th></tr>
+      <tr>
+        <td>头部</td>
+        <td>状态圆圈 + 日期下拉 + 总时长数字一行；三个筛选控件单独一行右对齐，用水平分隔线隔开</td>
+        <td>日期改成 segmented（今天 / 昨天 / 更多▾），实时状态收成 6px 圆点 + 文字，总时长下沉为正文主数字</td>
+      </tr>
+      <tr>
+        <td>摘要</td>
+        <td>5 张卡片，3 列布局第二行空一格；每张都有独立边框和底色</td>
+        <td>1 主 + 4 次，用竖分隔线组成一条横向 strip，去掉全部卡片框。高度从约 108px 降到 30px</td>
+      </tr>
+      <tr>
+        <td>指标筛选</td>
+        <td>「总时长 ▾」「按数据 ▾」两个下拉 + 一个排序箭头按钮</td>
+        <td>指标改成 4 个 chip 常驻可见；排序合并成一个「时长 ↓」文字按钮，点击切换字段/方向</td>
+      </tr>
+      <tr>
+        <td>条形图</td>
+        <td>行高 44、最多可视 5 行需滚动；任务名 108px 占宽，条形无选中态</td>
+        <td>行高 34、9 行全部可见；任务名压到 90px；选中行加 2px 青色竖条 + 行底色；数值右对齐在条尾</td>
+      </tr>
+      <tr>
+        <td>明细</td>
+        <td>每次运行一张独立卡片（带边框、内边距），12 次要滑很久</td>
+        <td>改为紧凑表格行：序号 · 时间段 · 时长 · 战斗数，默认展示 4 条 + 「展开剩余 N 次」</td>
+      </tr>
+      <tr>
+        <td>时间维度（仅 B）</td>
+        <td>无</td>
+        <td>24 格热力条，格高 = 该小时运行分钟数；今天实色、昨天暗色对比；顶部给「有效运行占比」</td>
+      </tr>
+    </table>
+
+    <h2>实现成本（按当前代码）</h2>
+    <ul>
+      <li><b>方案 A</b>：改 <code>statistics_panel.dart</code> 的 <code>_SummaryGrid</code>（换 strip）、<code>_HeaderTopRow</code> + <code>_HeaderFiltersRow</code>（合并成一行）、<code>_ChartCard</code> 内边距；改 <code>statistics_history_chart.dart</code> 的 <code>_kHistoryRowHeight</code> 44→34、<code>_kHistoryTaskLabelWidth</code> 108→90、<code>_kHistoryMaxVisibleRows</code> 5→9，加选中态；改 <code>statistics_detail_section.dart</code> 的 <code>_RunCard</code> → 表格行 + 展开。</li>
+      <li><b>方案 B</b>：额外需要按小时聚合 runs 的派生数据（<code>statistics_controller.dart</code> 里加一个 getter，用 <code>startTime</code>/<code>endTime</code> 与整点求交），再加一个月/年维度的数据源才能画「昨天」——<code>/stats/{config}/dates</code> 只回日期列表，昨天那条要额外拉一次 <code>/stats/{config}?date=</code>。这是 B 的主要成本。</li>
+      <li><b>两版都不动</b>：数据接口、i18n 结构（只加键）、<code>AppColors</code>。</li>
+    </ul>
+
+    <h2>还需要你定的三件事</h2>
+    <ul>
+      <li><b>摘要要不要保留 5 项</b>：现在是总时长 / 任务数 / 运行次数 / 战斗次数 / 平均单次。A 版砍掉了「总时长」卡片因为它升格成主数字，如果觉得平均单次没用，可以换成「战斗耗时占比」之类。</li>
+      <li><b>明细折叠还是常驻</b>：折叠能省高度，但点多一次；如果你的习惯是每次必看明细，可以直接常驻 5 条、不做展开。</li>
+      <li><b>昨天对比要不要</b>：B 的昨天轨道需要额外一次请求，如果只想要时间维度不要对比，可以只画今天一条，成本降很多。</li>
+    </ul>
+
+  </div>
+</div>
+</body>
+</html>

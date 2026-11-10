@@ -27,6 +27,9 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
     return bulkQuickScheduleMode.value != HomeBulkQuickScheduleMode.none;
   }
 
+  /// 是否仍有 worker 在写后端（包含超时后仍在收尾的那一段）。
+  bool get isBulkQuickScheduleBusy => _bulkQuickScheduleWorkers > 0;
+
   /// Collects enabled task names in overview order for bulk quick scheduling.
   List<String> quickSchedulableTaskNamesFor(ScriptModel model) {
     final names = <String>[];
@@ -56,7 +59,7 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
     required String scriptName,
     required bool runNow,
   }) async {
-    if (isBulkQuickScheduling) {
+    if (isBulkQuickScheduleBusy) {
       return HomeBulkQuickScheduleResult.skipped;
     }
     final source = scriptName.trim();
@@ -65,6 +68,7 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
     }
     // 连接器勾选后，批量操作要对同一组配置一起执行。
     final targets = linkedScopeScriptsFor(source);
+    final token = ++_bulkQuickScheduleToken;
     bulkQuickScheduleMode.value = runNow
         ? HomeBulkQuickScheduleMode.runNow
         : HomeBulkQuickScheduleMode.waitNow;
@@ -73,7 +77,8 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
       var anyFailed = false;
       var anyDone = false;
       for (final target in targets) {
-        final result = await _bulkQuickScheduleTasksForSingle(target, runNow);
+        final result =
+            await _bulkQuickScheduleTasksForSingle(target, runNow, token);
         switch (result) {
           case HomeBulkQuickScheduleResult.completed:
             anyDone = true;
@@ -105,6 +110,7 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
   Future<HomeBulkQuickScheduleResult> _bulkQuickScheduleTasksForSingle(
     String scriptName,
     bool runNow,
+    int token,
   ) async {
     final source = scriptName.trim();
     final model = _scriptService.findScriptModel(source);
@@ -115,10 +121,13 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
       return HomeBulkQuickScheduleResult.skipped;
     }
     final result = await Future.any<bool?>([
-      _runBulkQuickScheduleTasks(source, taskNames, runNow),
+      _runBulkQuickScheduleTasks(source, taskNames, runNow, token),
       Future<bool?>.delayed(_bulkQuickScheduleTimeout, () => null),
     ]);
     if (result == null) {
+      // 超时只是让 UI 解锁，底层还在一个个写。立刻作废令牌，
+      // 让 worker 写完手上这一个就停手，别把整批都发出去。
+      _bulkQuickScheduleToken++;
       return HomeBulkQuickScheduleResult.timedOut;
     }
     return result
@@ -545,21 +554,31 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
     String scriptName,
     List<String> taskNames,
     bool runNow,
+    int token,
   ) async {
+    _bulkQuickScheduleWorkers++;
     var allSuccess = true;
-    for (final taskName in taskNames) {
-      try {
-        final ret = await quickScheduleTask(
-          scriptName: scriptName,
-          taskName: taskName,
-          runNow: runNow,
-        );
-        allSuccess = ret && allSuccess;
-      } catch (_) {
-        allSuccess = false;
+    try {
+      for (final taskName in taskNames) {
+        // 已经被超时作废：立刻收手，剩下的任务不再写。
+        if (token != _bulkQuickScheduleToken) {
+          return false;
+        }
+        try {
+          final ret = await quickScheduleTask(
+            scriptName: scriptName,
+            taskName: taskName,
+            runNow: runNow,
+          );
+          allSuccess = ret && allSuccess;
+        } catch (_) {
+          allSuccess = false;
+        }
       }
+      return allSuccess;
+    } finally {
+      _bulkQuickScheduleWorkers--;
     }
-    return allSuccess;
   }
 
   /// Toggles one task enable flag, optionally across the linked scope.
@@ -683,6 +702,11 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
       normalizedScript,
       normalizedTask,
     );
+    // 请求失败（null）不能当成「不支持该任务」，否则一次网络抖动就会让这个
+    // 任务在本会话里永久不可调度；只有确实拿到数据才写缓存。
+    if (taskData == null) {
+      return false;
+    }
     final supported = taskData.isNotEmpty;
     _taskAvailabilityCache[cacheKey] = supported;
     return supported;

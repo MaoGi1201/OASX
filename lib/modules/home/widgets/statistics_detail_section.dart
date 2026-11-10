@@ -1,11 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:oasx/config/app_colors.dart';
+import 'package:oasx/config/app_metrics.dart';
 import 'package:oasx/modules/home/models/script_statistics_models.dart';
 import 'package:oasx/modules/home/widgets/statistics_formatters.dart';
 import 'package:oasx/translation/i18n_content.dart';
 
+/// How many runs stay visible while the detail list is collapsed.
+const _kCollapsedRunCount = 4;
+const _kDetailRowHeight = 26.0;
+const _kDetailIndexWidth = 22.0;
+const _kDetailDurationWidth = 54.0;
+const _kDetailBattleWidth = 32.0;
+
 /// Task execution detail list rendered below the chart.
-class ScriptStatisticsDetailSection extends StatelessWidget {
+///
+/// The list is folded by default: four rows plus a "show more" affordance keeps
+/// the panel on one screen, and the whole table is one flat block instead of a
+/// card per run.
+class ScriptStatisticsDetailSection extends StatefulWidget {
   /// Creates a task execution detail section.
   const ScriptStatisticsDetailSection({
     super.key,
@@ -20,36 +33,278 @@ class ScriptStatisticsDetailSection extends StatelessWidget {
   final List<ScriptTaskRunRecord> runs;
 
   @override
+  State<ScriptStatisticsDetailSection> createState() =>
+      _ScriptStatisticsDetailSectionState();
+}
+
+class _ScriptStatisticsDetailSectionState
+    extends State<ScriptStatisticsDetailSection> {
+  bool _expanded = false;
+
+  @override
+  void didUpdateWidget(covariant ScriptStatisticsDetailSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 换任务时回到折叠态：上一个任务展开到 20 行，切过来不该把面板撑爆。
+    if (oldWidget.taskName != widget.taskName) {
+      _expanded = false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (taskName.trim().isEmpty) {
-      return _DetailPlaceholder(
-        label: I18n.homeStatsNoTaskSelected.tr,
+    if (widget.taskName.trim().isEmpty) {
+      return _DetailPlaceholder(label: I18n.homeStatsNoTaskSelected.tr);
+    }
+    final runs = widget.runs;
+    if (runs.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _DetailHeader(taskName: widget.taskName, runs: runs),
+          const SizedBox(height: 8),
+          _DetailPlaceholder(label: I18n.homeStatsTaskDetailEmpty.tr),
+        ],
       );
     }
+    final visibleRuns = _expanded
+        ? runs
+        : runs.take(_kCollapsedRunCount).toList(growable: false);
+    final hiddenCount = runs.length - visibleRuns.length;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          '${I18n.homeStatsRunDetails.tr}: ${taskName.tr}',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 10),
-        if (runs.isEmpty)
-          _DetailPlaceholder(label: I18n.homeStatsTaskDetailEmpty.tr)
-        else
-          ...List.generate(runs.length, (index) {
-            final displayIndex = runs.length - index;
-            return Padding(
-              padding:
-                  EdgeInsets.only(bottom: index == runs.length - 1 ? 0 : 8),
-              child: _RunCard(
-                taskName: taskName,
-                run: runs[index],
-                serialNumber: displayIndex,
-              ),
-            );
-          }),
+        _DetailHeader(taskName: widget.taskName, runs: runs),
+        const SizedBox(height: 6),
+        _DetailColumnHeader(),
+        for (var index = 0; index < visibleRuns.length; index++)
+          _DetailRow(
+            run: visibleRuns[index],
+            color: statisticsTaskColor(widget.taskName),
+            serialNumber: runs.length - index,
+            showDivider: index != visibleRuns.length - 1,
+          ),
+        if (hiddenCount > 0 || _expanded)
+          _DetailToggle(
+            label: _expanded
+                ? I18n.homeStatsCollapse.tr
+                : I18n.homeStatsExpandRest.tr.replaceFirst(
+                    '%s',
+                    '$hiddenCount',
+                  ),
+            onTap: () => setState(() => _expanded = !_expanded),
+          ),
       ],
+    );
+  }
+}
+
+class _DetailHeader extends StatelessWidget {
+  const _DetailHeader({required this.taskName, required this.runs});
+
+  final String taskName;
+  final List<ScriptTaskRunRecord> runs;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = statisticsTaskColor(taskName);
+    var battleCount = 0;
+    var durationSeconds = 0.0;
+    for (final run in runs) {
+      battleCount += run.battleCount;
+      durationSeconds += run.durationSeconds;
+    }
+    final avgSeconds = runs.isEmpty ? 0.0 : durationSeconds / runs.length;
+    final summary = battleCount > 0
+        ? '$battleCount ${I18n.homeStatsBattleShort.tr}  ·  '
+            '${I18n.homeStatsChipAvgDuration.tr} '
+            '${formatStatisticsDuration(avgSeconds)}'
+        : formatStatisticsDuration(avgSeconds);
+    return Row(
+      children: [
+        Container(
+          width: 3,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            '${taskName.tr} · ${runs.length} ${I18n.homeStatsRunUnit.tr}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.text,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            summary,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: TextStyle(fontSize: 10, color: AppColors.text3),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DetailColumnHeader extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(fontSize: 9, color: AppColors.text3);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: _kDetailIndexWidth,
+            child: Text('#', style: style),
+          ),
+          Expanded(child: Text(I18n.homeStatsHourFilter.tr, style: style)),
+          SizedBox(
+            width: _kDetailDurationWidth,
+            child: Text(
+              I18n.homeStatsDuration.tr,
+              textAlign: TextAlign.right,
+              style: style,
+            ),
+          ),
+          SizedBox(
+            width: _kDetailBattleWidth,
+            child: Text(
+              I18n.homeStatsBattleShort.tr,
+              textAlign: TextAlign.right,
+              style: style,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({
+    required this.run,
+    required this.color,
+    required this.serialNumber,
+    required this.showDivider,
+  });
+
+  final ScriptTaskRunRecord run;
+  final Color color;
+  final int serialNumber;
+  final bool showDivider;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: _kDetailRowHeight,
+      decoration: BoxDecoration(
+        border: showDivider
+            ? Border(
+                bottom: BorderSide(
+                  color: AppColors.border.withValues(alpha: 0.55),
+                ),
+              )
+            : null,
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: _kDetailIndexWidth,
+            child: Text(
+              '$serialNumber',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: color.withValues(alpha: 0.9),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              '${formatStatisticsClockTime(run.startTime)} → '
+              '${formatStatisticsClockTime(run.endTime)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10.5,
+                color: AppColors.text2,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          SizedBox(
+            width: _kDetailDurationWidth,
+            child: Text(
+              formatStatisticsDuration(run.durationSeconds),
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.text,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          SizedBox(
+            width: _kDetailBattleWidth,
+            child: Text(
+              run.battleCount > 0 ? '${run.battleCount}' : '–',
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 10.5,
+                color: AppColors.text3,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailToggle extends StatelessWidget {
+  const _DetailToggle({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(AppRadius.button),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.button),
+        onTap: onTap,
+        child: SizedBox(
+          height: 26,
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.teal,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -63,99 +318,15 @@ class _DetailPlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
+        borderRadius: BorderRadius.circular(AppRadius.menu),
+        border: Border.all(color: AppColors.border),
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.bodyMedium,
         textAlign: TextAlign.center,
-      ),
-    );
-  }
-}
-
-class _RunCard extends StatelessWidget {
-  const _RunCard({
-    required this.taskName,
-    required this.run,
-    required this.serialNumber,
-  });
-
-  final String taskName;
-  final ScriptTaskRunRecord run;
-  final int serialNumber;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = statisticsTaskColor(taskName);
-    final scheme = Theme.of(context).colorScheme;
-    final hasBattle = run.battleCount > 0;
-    return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: scheme.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                '$serialNumber',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    formatStatisticsClockTimeRange(run.startTime, run.endTime),
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    hasBattle
-                        ? '${I18n.homeStatsBattleCount.tr}: ${run.battleCount}  ·  '
-                            '${I18n.homeStatsBattleAvgDuration.tr}: '
-                            '${formatStatisticsDuration(run.battleAvgDurationSeconds)}'
-                        : I18n.homeStatsNoBattle.tr,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              formatStatisticsDuration(run.durationSeconds),
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-          ],
-        ),
+        style: TextStyle(fontSize: 11, color: AppColors.text3),
       ),
     );
   }

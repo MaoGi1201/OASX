@@ -33,6 +33,16 @@ class ServerController extends GetxController with LogMixin {
   /// Tracks whether taskkill already reported that pythonw.exe is absent.
   var _pythonwNotRunningLogged = false;
 
+  /// Shell output subscriptions.
+  ///
+  /// These used to be fire-and-forget `listen` calls: the controller is created
+  /// once per `/server` visit, so every visit left the previous instance still
+  /// draining the shell streams (and still holding its 50ms log timer), while
+  /// the freshly created instance started with an empty log list. Holding the
+  /// subscriptions lets [onClose] actually detach.
+  StreamSubscription<String>? _shellLogSub;
+  StreamSubscription<String>? _shellErrorSub;
+
   @override
   void onInit() {
     rootPathServer.value =
@@ -41,15 +51,24 @@ class ServerController extends GetxController with LogMixin {
     autoLoginAfterDeploy.value =
         _storage.read(StorageKey.autoLoginAfterDeploy.name) ?? false;
     shell = getShell;
-    shellController.stream.listen(
+    _shellLogSub = shellController.stream.listen(
       (event) => addLog(!event.contains('INFO') ? 'INFO: $event' : event),
     );
-    shellErrorController.stream.listen(_addShellErrorLine);
+    _shellErrorSub = shellErrorController.stream.listen(_addShellErrorLine);
     rootPathAuthenticated.value = authenticatePath(rootPathServer.value);
     if (rootPathAuthenticated.value) {
       readDeploy();
     }
     super.onInit();
+  }
+
+  @override
+  void onClose() {
+    _shellLogSub?.cancel();
+    _shellErrorSub?.cancel();
+    _shellLogSub = null;
+    _shellErrorSub = null;
+    super.onClose();
   }
 
   void updateRootPathServer(String value) {

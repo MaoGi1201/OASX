@@ -42,7 +42,7 @@ class _LogTextSpanBuilder {
     if (timestampLength > 0) {
       return TextSpan(
         text: value.substring(index, index + timestampLength),
-        style: baseStyle.copyWith(color: Colors.cyan),
+        style: baseStyle.copyWith(color: AppColors.logInfo),
       );
     }
     for (final token in _tokens) {
@@ -157,27 +157,27 @@ class _LogTextSpanBuilder {
 
   /// Styles the INFO token.
   static TextStyle _styleInfo(TextStyle base) {
-    return base.copyWith(color: const Color.fromARGB(255, 55, 109, 136));
+    return base.copyWith(color: AppColors.logInfo);
   }
 
   /// Styles the WARNING token.
   static TextStyle _styleWarning(TextStyle base) {
-    return base.copyWith(color: Colors.yellow);
+    return base.copyWith(color: AppColors.logWarn);
   }
 
   /// Styles error-level tokens.
   static TextStyle _styleError(TextStyle base) {
-    return base.copyWith(color: Colors.red);
+    return base.copyWith(color: AppColors.logError);
   }
 
   /// Styles successful boolean-like tokens.
   static TextStyle _styleSuccess(TextStyle base) {
-    return base.copyWith(color: Colors.lightGreen);
+    return base.copyWith(color: AppColors.logSuccess);
   }
 
   /// Styles null-like tokens.
   static TextStyle _styleNone(TextStyle base) {
-    return base.copyWith(color: Colors.purple);
+    return base.copyWith(color: AppColors.logDebug);
   }
 }
 

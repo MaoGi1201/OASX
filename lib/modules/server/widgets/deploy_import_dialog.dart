@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:oasx/config/app_metrics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:styled_widget/styled_widget.dart';
@@ -47,7 +48,7 @@ class _DeployImportDialogState extends State<DeployImportDialog> {
       onDropEnded: (_) => _setDragging(false),
       onPerformDrop: _onPerformDrop,
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.menu),
         onTap: _pickFile,
         child: DecoratedBox(
           decoration: BoxDecoration(
@@ -61,7 +62,7 @@ class _DeployImportDialogState extends State<DeployImportDialog> {
                   : theme.colorScheme.outlineVariant,
               style: BorderStyle.solid,
             ),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadius.menu),
           ),
           child: Center(child: _buildDropText(theme)).paddingAll(18),
         ),
