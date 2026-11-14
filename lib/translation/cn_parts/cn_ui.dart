@@ -286,6 +286,10 @@ final Map<String, String> _cn_ui = {
   I18n.homeQuickWaitAll: '全部立即等待',
   I18n.homeBulkQuickScheduleTimedOut: '批量快捷调度仍在执行，已恢复操作状态',
   I18n.homeBulkQuickScheduleBusy: '上一批调度还在执行，请稍候',
+  // 跟在数量后面：「2 个配置卡死，点击查看」「2 个配置需要处理」「仅看异常 2」。
+  I18n.homeAllConfigsWarningTip: '个配置卡死，点击查看',
+  I18n.homeAllConfigsWarningBanner: '个配置需要处理',
+  I18n.homeAllConfigsOnlyWarning: '仅看异常',
   I18n.homeConfigStartTip: '启动该配置',
   I18n.homeConfigStopTip: '停止该配置',
   I18n.homeConfigRestartTip: '配置已卡死，点击重新启动',

@@ -253,6 +253,12 @@ class I18n {
       homeQuickWaitAll = 'home_quick_wait_all',
       homeBulkQuickScheduleTimedOut = 'home_bulk_quick_schedule_timed_out',
       homeBulkQuickScheduleBusy = 'home_bulk_quick_schedule_busy',
+      // 「全部配置」按钮的异常角标与面板筛选：后端把配置判为卡死时启用。
+      // 这几个短语都跟在数量后面用（"2 个配置卡死" / "2 stuck configs"），
+      // 所以只存量词之后的半句，数字由调用方拼。
+      homeAllConfigsWarningTip = 'home_all_configs_warning_tip',
+      homeAllConfigsWarningBanner = 'home_all_configs_warning_banner',
+      homeAllConfigsOnlyWarning = 'home_all_configs_only_warning',
       homeOpenTaskParams = 'home_open_task_params',
       homeTaskConfigureAndEnable = 'home_task_configure_and_enable';
   /// 配置启停按钮（顶栏标签 + 配置卡片胶囊）的文案与提示。

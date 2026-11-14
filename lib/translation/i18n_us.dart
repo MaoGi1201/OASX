@@ -223,6 +223,9 @@ final Map<String, String> _us_ui = {
       'Bulk quick scheduling is still running; controls were restored',
   I18n.homeBulkQuickScheduleBusy:
       'The previous batch is still running, please wait.',
+  I18n.homeAllConfigsWarningTip: 'stuck configs, click to view',
+  I18n.homeAllConfigsWarningBanner: 'config(s) need attention',
+  I18n.homeAllConfigsOnlyWarning: 'Warnings only',
   I18n.homeConfigStartTip: 'Start this config',
   I18n.homeConfigStopTip: 'Stop this config',
   I18n.homeConfigRestartTip: 'Config is stuck, click to restart',
