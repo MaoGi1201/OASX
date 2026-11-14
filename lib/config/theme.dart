@@ -7,21 +7,10 @@ import 'package:oasx/modules/common/widgets/app_popup_menu.dart';
 
 /// 全局界面字体族。
 ///
-/// `OasSans` 在 `pubspec.yaml` 里注册，实际文件是 Nunito 的四个静态字重
-/// （400/500/600/700）。Nunito 只有拉丁与数字字形，汉字/日文由 [kAppHanFamily]
-/// 兜底，再往后的生僻字才落到系统字体（Windows → Microsoft YaHei）。
-/// 所以同一个 `TextStyle` 里「数字圆润、汉字也是圆的」是预期效果。
-const String kAppFontFamily = 'OasSans';
-
-/// 汉字与日文字体族，实际文件是「思源柔黑 CN」的 400/500 两个字重
-/// （子集化后每个约 3.1MB，见 `pubspec.yaml` 的注释）。
-///
-/// 它是思源黑体派生的圆体：横竖末端有一圈小圆角，字面比雅黑略宽一点，
-/// 简体与日文假名/常用汉字都在同一套字形里，所以中英混排不会串味。
-const String kAppHanFamily = 'OasHan';
-
-/// 汉字字体始终排在回退链最前面，其余系统字体继续兜住子集外的生僻字。
-const List<String> _kHanFallbackPrefix = <String>[kAppHanFamily];
+/// `LatoLato` 在 `pubspec.yaml` 里注册，实际文件是 `assets/Lato-Regular.ttf`。
+/// Lato 只有拉丁与数字字形，汉字由 `useSystemChineseFont()` 交给系统字体
+/// （Windows → Microsoft YaHei）。
+const String kAppFontFamily = 'LatoLato';
 
 const List<String> _webChineseFontFallback = <String>[
   'PingFang SC',
@@ -81,10 +70,7 @@ TextStyle _style({
 }) {
   return TextStyle(
     fontFamily: kAppFontFamily,
-    fontFamilyFallback: <String>[
-      ..._kHanFallbackPrefix,
-      ...SystemChineseFont.fontFamilyFallback,
-    ],
+    fontFamilyFallback: SystemChineseFont.fontFamilyFallback,
     fontSize: fontSize,
     height: height,
     fontWeight: fontWeight,
@@ -340,35 +326,9 @@ TextTheme _buildTextTheme(Brightness brightness) {
     labelSmall: _style(fontSize: 10, color: text3),
   );
   final withFamily = baseTheme.apply(fontFamily: kAppFontFamily);
-  final withChinese = kIsWeb
+  return kIsWeb
       ? _applyFontFallback(withFamily, _webChineseFontFallback)
       : withFamily.useSystemChineseFont(brightness);
-  return _prependHanFallback(withChinese);
-}
-
-/// 把 [kAppHanFamily] 插到每个样式的回退链首位，其余系统字体顺延。
-///
-/// 不能直接用 `copyWith(fontFamilyFallback: [...prefix])` 覆盖：那会把
-/// `useSystemChineseFont()` 追加的 PingFang / 雅黑 / sans-serif 一并丢掉，
-/// 子集外的生僻字就会变成方框。
-TextTheme _prependHanFallback(TextTheme textTheme) {
-  TextStyle? prepend(TextStyle? style) => style?.copyWith(
-        fontFamilyFallback: <String>[
-          ..._kHanFallbackPrefix,
-          ...?style.fontFamilyFallback,
-        ],
-      );
-  return textTheme.copyWith(
-    bodyLarge: prepend(textTheme.bodyLarge),
-    bodyMedium: prepend(textTheme.bodyMedium),
-    bodySmall: prepend(textTheme.bodySmall),
-    labelLarge: prepend(textTheme.labelLarge),
-    labelMedium: prepend(textTheme.labelMedium),
-    labelSmall: prepend(textTheme.labelSmall),
-    titleLarge: prepend(textTheme.titleLarge),
-    titleMedium: prepend(textTheme.titleMedium),
-    titleSmall: prepend(textTheme.titleSmall),
-  );
 }
 
 TextTheme _applyFontFallback(TextTheme textTheme, List<String> fallback) {
