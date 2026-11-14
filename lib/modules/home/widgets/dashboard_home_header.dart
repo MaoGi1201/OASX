@@ -24,6 +24,8 @@ class _AllConfigsDialog extends StatefulWidget {
 class _AllConfigsDialogState extends State<_AllConfigsDialog> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
+  /// 「仅看异常」筛选开关，只在存在卡死配置时可用。
+  bool _onlyWarning = false;
   /// 已有生效的连接组时，进来就直接展示连接状态（勾选框可见）。
   late bool _linkMode = widget.startInLinkMode ||
       widget.controller.validLinkedScripts.length >= 2;
@@ -88,12 +90,18 @@ class _AllConfigsDialogState extends State<_AllConfigsDialog> {
       final names = widget.scriptService.scriptOrderList;
       final activeName = widget.controller.activeScriptName.value.trim();
       final linked = widget.controller.linkedScriptList.toSet();
-      final keyword = _query.trim().toLowerCase();
-      final filtered = keyword.isEmpty
-          ? names
-          : names
-              .where((name) => name.toLowerCase().contains(keyword))
-              .toList();
+      final warningNames = <String>[
+        for (final name in names)
+          if (_stateOf(name) == ScriptState.warning) name,
+      ];
+      // 异常全部恢复后自动退出「仅看异常」，否则列表会突然变成空态。
+      final onlyWarning = _onlyWarning && warningNames.isNotEmpty;
+      final filtered = filterAllConfigs(
+        names,
+        query: _query,
+        onlyWarning: onlyWarning,
+        warnings: warningNames.toSet(),
+      );
       var runningCount = 0;
       for (final name in names) {
         if (_stateOf(name) == ScriptState.running) {
@@ -151,6 +159,15 @@ class _AllConfigsDialogState extends State<_AllConfigsDialog> {
                 ),
                 onChanged: (value) => setState(() => _query = value),
               ),
+              if (warningNames.isNotEmpty) ...[
+                const SizedBox(height: AppGap.m),
+                _WarningBannerRow(
+                  names: warningNames,
+                  onlyWarning: onlyWarning,
+                  onToggleFilter: () =>
+                      setState(() => _onlyWarning = !_onlyWarning),
+                ),
+              ],
               const SizedBox(height: 8),
               Text(
                 _linkMode
@@ -224,6 +241,82 @@ class _AllConfigsDialogState extends State<_AllConfigsDialog> {
   ScriptState _stateOf(String name) {
     return widget.scriptService.findScriptModel(name)?.state.value ??
         ScriptState.inactive;
+  }
+}
+
+/// 弹窗顶部那条黄色提示：有几个配置卡死、分别是哪些，右侧是「仅看异常」开关。
+///
+/// 只在存在卡死配置时渲染，平时完全不占高度，不会把下方网格挤少一行。
+class _WarningBannerRow extends StatelessWidget {
+  const _WarningBannerRow({
+    required this.names,
+    required this.onlyWarning,
+    required this.onToggleFilter,
+  });
+
+  final List<String> names;
+  final bool onlyWarning;
+  final VoidCallback onToggleFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    final yellow = AppColors.yellow;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: yellow.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: yellow.withValues(alpha: 0.38)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, size: 15, color: yellow),
+          const SizedBox(width: AppGap.s),
+          Expanded(
+            child: Text(
+              '${names.length} ${I18n.homeAllConfigsWarningBanner.tr}'
+              ' · ${names.join(' / ')}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11.5,
+                height: 1.35,
+                color: AppColors.text2,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppGap.s),
+          InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            onTap: onToggleFilter,
+            child: Container(
+              height: 22,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: onlyWarning
+                    ? yellow.withValues(alpha: 0.18)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                border: Border.all(
+                  color: onlyWarning
+                      ? yellow.withValues(alpha: 0.7)
+                      : AppColors.border,
+                ),
+              ),
+              child: Text(
+                '${I18n.homeAllConfigsOnlyWarning.tr} ${names.length}',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: onlyWarning ? yellow : AppColors.text2,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -502,12 +595,21 @@ class _DashboardHeader extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           // 配置多时用它一览全部（带搜索与状态点），手机界面同样保留。
-          _AllConfigsButton(
-            count: names.length,
-            onTap: () => showAllConfigsDialog(
-              context,
-              controller: controller,
-              scriptService: scriptService,
+          //
+          // 必须包一层 Obx：`_AllConfigsButton` 拿到的是普通 List，某个配置
+          // 从 running 翻成 warning 时只有在这里读 Rx 才会触发重建。
+          Obx(
+            () => AllConfigsButton(
+              count: names.length,
+              warningNames: <String>[
+                for (final name in names)
+                  if (_stateOf(name) == ScriptState.warning) name,
+              ],
+              onTap: () => showAllConfigsDialog(
+                context,
+                controller: controller,
+                scriptService: scriptService,
+              ),
             ),
           ),
           // 手机界面只保留配置标签，+/− 及其右侧的所有按钮都隐藏。
@@ -896,16 +998,34 @@ VoidCallback? _dismissingTooltipTap(VoidCallback? onTap) {
 }
 
 /// 顶栏「全部 N」按钮：点开配置网格面板。
-class _AllConfigsButton extends StatelessWidget {
-  const _AllConfigsButton({required this.count, required this.onTap});
+///
+/// [warningNames] 非空时按钮转成警示态（描边与文字转黄），并在四格图标右上角
+/// 挂一个数量角标，让「有配置卡死」这件事不用逐个切标签就能看见。
+///
+/// 角标贴在**图标**上而不是按钮右上角：它是「这个按钮里有一批配置出问题」的
+/// 标记，压在图标上才读得出归属；挂在按钮最右侧时视线要横穿整行文字才落到
+/// 角标上，而且很容易和右边相邻的方形按钮混成一组。
+class AllConfigsButton extends StatelessWidget {
+  const AllConfigsButton({
+    super.key,
+    required this.count,
+    required this.warningNames,
+    required this.onTap,
+  });
 
   final int count;
+  final List<String> warningNames;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final warned = warningNames.isNotEmpty;
+    final fg = warned ? AppColors.yellow : AppColors.text2;
     return Tooltip(
-      message: '全部配置',
+      // 只报数量，不列名字：异常配置可能十几个，逐一罗列会让浮层长得没边。
+      message: warned
+          ? '${warningNames.length} ${I18n.homeAllConfigsWarningTip.tr}'
+          : '全部配置',
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.button),
         onTap: _dismissingTooltipTap(onTap),
@@ -915,23 +1035,36 @@ class _AllConfigsButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.surface3,
             borderRadius: BorderRadius.circular(AppRadius.button),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(
+              color: warned
+                  ? AppColors.yellow.withValues(alpha: 0.55)
+                  : AppColors.border,
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.grid_view_rounded,
-                size: 13,
-                color: AppColors.text2,
+              // 角标紧贴图标右侧（只压住 1px），四格图标保持完整可辨；
+              // 间距跟着让开，两位数（"12"）也不会碰到「全」字。
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(Icons.grid_view_rounded, size: 13, color: fg),
+                  if (warned)
+                    Positioned(
+                      top: -5,
+                      left: 12,
+                      child: AppWarningBadge(count: warningNames.length),
+                    ),
+                ],
               ),
-              const SizedBox(width: AppGap.xs),
+              SizedBox(width: warned ? 20 : AppGap.xs),
               Text(
                 '全部 $count',
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.text2,
+                  color: fg,
                 ),
               ),
             ],
